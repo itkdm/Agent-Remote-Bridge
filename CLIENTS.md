@@ -27,7 +27,7 @@
 
 项目内已有示例：
 
-- [.vscode/mcp.json](D:\develop\project\Agent Remote Bridge\.vscode\mcp.json)
+- [.vscode/mcp.json](./.vscode/mcp.json)
 
 ## Codex Desktop
 

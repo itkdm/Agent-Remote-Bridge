@@ -128,13 +128,13 @@ agent-remote-bridge
 Copy-Item .\config\hosts.example.yaml .\config\hosts.yaml
 ```
 
-然后修改 [config/hosts.yaml](D:\develop\project\Agent Remote Bridge\config\hosts.yaml)。
+然后修改 [config/hosts.yaml](./config/hosts.yaml)。
 
 说明：
 
 - `config/hosts.yaml` 是你的本地私有配置
 - 对外分享时，以 `config/hosts.example.yaml` 为准
-- 详细说明见 [config/README.md](D:\develop\project\Agent Remote Bridge\config\README.md)
+- 详细说明见 [config/README.md](./config/README.md)
 
 密码登录示例：
 
@@ -234,11 +234,11 @@ agent-remote-bridge [OPTIONS]
 
 项目里已经提供了一个示例：
 
-- [.vscode/mcp.json](D:\develop\project\Agent Remote Bridge\.vscode\mcp.json)
+- [.vscode/mcp.json](./.vscode/mcp.json)
 
 如果你使用项目自带虚拟环境，VS Code 最终拉起的是：
 
-- [scripts/run_server.ps1](D:\develop\project\Agent Remote Bridge\scripts\run_server.ps1)
+- [scripts/run_server.ps1](./scripts/run_server.ps1)
 
 ### 其他 MCP 客户端
 
@@ -258,7 +258,7 @@ agent-remote-bridge --transport streamable-http --host 127.0.0.1 --port 8000
 
 更完整的接入示例见：
 
-- [CLIENTS.md](D:\develop\project\Agent Remote Bridge\CLIENTS.md)
+- [CLIENTS.md](./CLIENTS.md)
 
 ## 推荐使用方式
 
@@ -291,7 +291,7 @@ agent-remote-bridge --transport streamable-http --host 127.0.0.1 --port 8000
 
 更适合第一次使用的版本见：
 
-- [QUICKSTART.md](D:\develop\project\Agent Remote Bridge\QUICKSTART.md)
+- [QUICKSTART.md](./QUICKSTART.md)
 
 也可以直接运行本地 smoke test：
 
@@ -304,4 +304,4 @@ python .\scripts\smoke_test.py --host-id demo-server
 
 本项目当前使用：
 
-- [MIT License](D:\develop\project\Agent Remote Bridge\LICENSE)
+- [MIT License](./LICENSE)

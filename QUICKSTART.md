@@ -18,7 +18,7 @@ python -m venv .venv
 Copy-Item .\config\hosts.example.yaml .\config\hosts.yaml
 ```
 
-把 [config/hosts.yaml](D:\develop\project\Agent Remote Bridge\config\hosts.yaml) 改成你自己的服务器信息。
+把 [config/hosts.yaml](./config/hosts.yaml) 改成你自己的服务器信息。
 
 最小示例：
 
@@ -62,7 +62,7 @@ agent-remote-bridge --transport stdio
 
 如果你使用 VS Code，可以直接用项目里的：
 
-- [.vscode/mcp.json](D:\develop\project\Agent Remote Bridge\.vscode\mcp.json)
+- [.vscode/mcp.json](./.vscode/mcp.json)
 
 ## 5. 先试这三个动作
 
