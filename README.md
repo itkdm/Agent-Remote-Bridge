@@ -1,0 +1,307 @@
+# Agent Remote Bridge
+
+Agent Remote Bridge 是一个标准 MCP Server，用来把远程 Linux 服务器能力接入本地 Agent。
+
+它的核心价值是：
+
+- 保留本地上下文
+- 连接远程真实环境
+- 让 Agent 执行命令、读取文件、查看日志、检查服务状态
+- 用更受控的方式替代“手动 SSH 来回切换”
+
+## 运行方式
+
+默认推荐形态是：
+
+- `Agent Remote Bridge` 运行在你的本地机器
+- 它被 VS Code、Codex Desktop、Claude Desktop 或其他兼容 MCP 的客户端拉起
+- 然后由它连接远程 Linux 服务器
+
+默认架构如下：
+
+```text
+MCP Client (VS Code / Codex / Claude)
+            ->
+Agent Remote Bridge（本地运行）
+            ->
+SSH / Password / Key
+            ->
+Remote Linux Server
+```
+
+这也是最适合先落地的方式，因为它接入成本最低，调试最直接。
+
+这个项目不是 VS Code 专属能力。只要客户端兼容 MCP，就都可以接入。
+
+当前支持的传输方式：
+
+- `stdio`
+- `sse`
+- `streamable-http`
+
+因此可接入：
+
+- VS Code
+- Codex Desktop
+- Claude Desktop
+- 其他兼容 MCP 的客户端或 Agent 框架
+
+## 当前范围
+
+当前项目定位为：
+
+- Linux only
+- SSH/密码登录优先
+- 非交互式命令执行
+- 逻辑 session，而不是远程持久 shell
+
+## 默认公开的稳定工具
+
+默认情况下，服务只暴露稳定工具：
+
+- `list_hosts`
+- `open_session`
+- `get_session_state`
+- `close_session`
+- `exec_remote`
+- `read_remote_file`
+- `list_remote_dir`
+- `get_system_facts`
+- `tail_system_log`
+- `check_service_status`
+
+这套工具面是刻意收敛过的，核心原则是：
+
+- 通用操作优先交给 `exec_remote`
+- 只保留少量高价值、稳定的结构化工具
+
+## 实验性工具
+
+以下工具默认不公开，只有显式开启实验模式才会暴露：
+
+- `test_host_connection`
+- `tail_remote_logs`
+- `check_port_listening`
+- `inspect_processes`
+- `find_log_file`
+
+开启方式：
+
+```powershell
+agent-remote-bridge --experimental-tools
+```
+
+或：
+
+```powershell
+$env:ARB_ENABLE_EXPERIMENTAL_TOOLS=1
+agent-remote-bridge
+```
+
+## 安装
+
+### 方式一：使用项目内虚拟环境
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade pip setuptools wheel
+.\.venv\Scripts\python.exe -m pip install -e .
+```
+
+### 方式二：直接安装为命令行工具
+
+```powershell
+pip install -e .
+```
+
+安装后会提供命令：
+
+```powershell
+agent-remote-bridge
+```
+
+## 配置
+
+复制示例配置：
+
+```powershell
+Copy-Item .\config\hosts.example.yaml .\config\hosts.yaml
+```
+
+然后修改 [config/hosts.yaml](D:\develop\project\Agent Remote Bridge\config\hosts.yaml)。
+
+说明：
+
+- `config/hosts.yaml` 是你的本地私有配置
+- 对外分享时，以 `config/hosts.example.yaml` 为准
+- 详细说明见 [config/README.md](D:\develop\project\Agent Remote Bridge\config\README.md)
+
+密码登录示例：
+
+```yaml
+hosts:
+  - host_id: demo-server
+    alias: demo
+    host: YOUR_SERVER_IP
+    port: 22
+    username: root
+    auth_mode: password
+    password: YOUR_PASSWORD
+    default_workdir: /root
+    allowed_paths:
+      - /root
+      - /etc
+      - /tmp
+      - /var/log
+    allow_sudo: true
+    tags:
+      - demo
+      - linux
+```
+
+注意：
+
+- 当前支持密码登录
+- 长期使用建议切换到 SSH key
+- 不建议把真实密码提交到仓库
+
+## 启动
+
+### 1. 本地 `stdio` 启动
+
+这是最适合桌面类 MCP 客户端的方式。
+
+```powershell
+agent-remote-bridge --transport stdio
+```
+
+或：
+
+```powershell
+python -m agent_remote_bridge.main --transport stdio
+```
+
+Windows 下也可以用项目脚本：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_server.ps1 --transport stdio
+```
+
+### 2. HTTP 启动
+
+适合代理接入或多客户端场景。
+
+```powershell
+agent-remote-bridge --transport streamable-http --host 127.0.0.1 --port 8000
+```
+
+或者：
+
+```powershell
+agent-remote-bridge --transport sse --host 127.0.0.1 --port 8000
+```
+
+### 3. 指定自定义 SQLite 路径
+
+```powershell
+agent-remote-bridge --sqlite-path .\data\state.dev.db
+```
+
+### 4. 开启实验性工具
+
+```powershell
+agent-remote-bridge --experimental-tools
+```
+
+## 命令行参数
+
+```text
+agent-remote-bridge [OPTIONS]
+
+--transport {stdio,sse,streamable-http}
+--host HOST
+--port PORT
+--sqlite-path PATH
+--experimental-tools
+--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
+```
+
+## 客户端接入
+
+### VS Code
+
+推荐通过工作区级 `.vscode/mcp.json` 让 VS Code 直接拉起本地 `stdio` server。
+
+项目里已经提供了一个示例：
+
+- [.vscode/mcp.json](D:\develop\project\Agent Remote Bridge\.vscode\mcp.json)
+
+如果你使用项目自带虚拟环境，VS Code 最终拉起的是：
+
+- [scripts/run_server.ps1](D:\develop\project\Agent Remote Bridge\scripts\run_server.ps1)
+
+### 其他 MCP 客户端
+
+如果客户端支持 `stdio` MCP server，只要配置它启动：
+
+```powershell
+agent-remote-bridge --transport stdio
+```
+
+即可接入。
+
+如果客户端支持 HTTP MCP server，也可以连接：
+
+```powershell
+agent-remote-bridge --transport streamable-http --host 127.0.0.1 --port 8000
+```
+
+更完整的接入示例见：
+
+- [CLIENTS.md](D:\develop\project\Agent Remote Bridge\CLIENTS.md)
+
+## 推荐使用方式
+
+1. 本地运行 `Agent Remote Bridge`
+2. 使用 MCP 客户端接入本地 server
+3. 由它连接远程 Linux 服务器
+4. 优先使用稳定工具集
+5. 复杂场景回退到 `exec_remote`
+
+## 适合的场景
+
+- 在本地使用 Agent，但需要操作远程 Linux 服务器
+- 需要查看日志、检查服务状态、读取配置文件
+- 希望把“本地上下文 + 远程执行”串成连续工作流
+- 希望先以最小方式接入 MCP，再逐步扩展能力
+
+## 当前状态
+
+当前已经验证通过：
+
+- 本地 MCP server 可运行
+- VS Code 可接入
+- 可真实连接远程服务器
+- 可执行 `pwd`、`ls`、`cat`
+- 可读取系统事实信息
+- 可查看系统日志
+- 可检查服务状态
+
+## 快速开始
+
+更适合第一次使用的版本见：
+
+- [QUICKSTART.md](D:\develop\project\Agent Remote Bridge\QUICKSTART.md)
+
+也可以直接运行本地 smoke test：
+
+```powershell
+python .\scripts\smoke_test.py --host-id demo-server --connect-only
+python .\scripts\smoke_test.py --host-id demo-server
+```
+
+## License
+
+本项目当前使用：
+
+- [MIT License](D:\develop\project\Agent Remote Bridge\LICENSE)

@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "agent-remote-bridge": {
+      "type": "stdio",
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\scripts\\run_server.ps1"
+      ]
+    }
+  }
+}

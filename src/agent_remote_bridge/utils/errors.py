@@ -1,0 +1,24 @@
+class BridgeError(Exception):
+    """Base exception for the bridge."""
+
+    error_type = "bridge_error"
+
+
+class NotFoundError(BridgeError):
+    error_type = "not_found"
+
+
+class ConfigError(BridgeError):
+    error_type = "config_error"
+
+
+class SecurityError(BridgeError):
+    error_type = "command_blocked"
+
+
+class RemoteExecutionError(BridgeError):
+    error_type = "remote_execution_failed"
+
+
+class TimeoutError(BridgeError):
+    error_type = "command_timeout"

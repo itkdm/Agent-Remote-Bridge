@@ -1,0 +1,37 @@
+[project]
+name = "agent-remote-bridge"
+version = "0.1.0"
+description = "A controlled remote execution MCP server for local coding agents."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [
+  { name = "Agent Remote Bridge" }
+]
+keywords = [
+  "mcp",
+  "model-context-protocol",
+  "ssh",
+  "remote-execution",
+  "agent",
+  "coding-agent",
+]
+dependencies = [
+  "fastmcp>=2.12.0",
+  "paramiko>=3.4.0",
+  "pydantic>=2.12.0",
+  "PyYAML>=6.0.0",
+]
+
+[project.scripts]
+agent-remote-bridge = "agent_remote_bridge.main:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
