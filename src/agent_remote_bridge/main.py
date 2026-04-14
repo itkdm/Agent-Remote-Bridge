@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Any
 
 from agent_remote_bridge.server import create_server
+from agent_remote_bridge.settings import load_settings
+from agent_remote_bridge.stores.host_store import HostStore
 
 
 def _apply_runtime_env(args: argparse.Namespace) -> None:
@@ -313,6 +315,72 @@ def _codex_register_command(args: argparse.Namespace) -> int:
     return 0 if add_result.returncode == 0 else 1
 
 
+def _doctor_command(args: argparse.Namespace) -> int:
+    _apply_runtime_env(args)
+    settings = load_settings()
+    url = f"http://{args.host}:{args.port}/mcp"
+    host_store = HostStore(settings.host_config_path)
+
+    config_exists = settings.host_config_path.exists()
+    host_error = None
+    hosts: list[Any] = []
+    if config_exists:
+        try:
+            hosts = host_store.list_hosts()
+        except Exception as exc:  # pragma: no cover - defensive fallback
+            host_error = str(exc)
+    tcp_ok = _probe_tcp(args.host, args.port)
+    http_probe = _probe_http_mcp(url) if tcp_ok else {
+        "ok": False,
+        "status_code": None,
+        "detail": "Port is not listening",
+    }
+    codex_status = _read_codex_server_status(args.codex_server_name, url)
+    issues: list[str] = []
+    if not config_exists:
+        issues.append("Host config file is missing.")
+    if host_error:
+        issues.append(f"Host config could not be parsed: {host_error}")
+    if not hosts:
+        issues.append("No hosts are configured.")
+    if not (tcp_ok and http_probe["ok"]):
+        issues.append("Local HTTP MCP server is not running.")
+    if not codex_status["registered"]:
+        issues.append("Codex is not registered to the current MCP URL.")
+
+    payload = {
+        "ok": len(issues) == 0,
+        "mode": "doctor",
+        "summary": {
+            "config_exists": config_exists,
+            "host_count": len(hosts),
+            "local_http_running": tcp_ok and http_probe["ok"],
+            "codex_registered": codex_status["registered"],
+        },
+        "issues": issues,
+        "config": {
+            "host_config_path": str(settings.host_config_path),
+            "sqlite_path": str(settings.sqlite_path),
+            "exists": config_exists,
+            "error": host_error,
+        },
+        "hosts": {
+            "count": len(hosts),
+            "host_ids": [host.host_id for host in hosts[:10]],
+        },
+        "local_http": {
+            "host": args.host,
+            "port": args.port,
+            "mcp_url": url,
+            "tcp_listening": tcp_ok,
+            "http_probe": http_probe,
+        },
+        "codex": codex_status,
+    }
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0 if payload["ok"] else 1
+
+
 def _serve_command(args: argparse.Namespace) -> int:
     _apply_runtime_env(args)
     server = create_server(
@@ -445,6 +513,38 @@ def build_parser() -> argparse.ArgumentParser:
         "--codex-server-name",
         default="agentRemoteBridge",
         help="Codex MCP server name to register. Default: agentRemoteBridge",
+    )
+
+    doctor_parser = subparsers.add_parser(
+        "doctor",
+        help="Run a local environment diagnostic for Agent Remote Bridge.",
+    )
+    doctor_parser.set_defaults(func=_doctor_command)
+    doctor_parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host for the local HTTP MCP server. Default: 127.0.0.1",
+    )
+    doctor_parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port for the local HTTP MCP server. Default: 8000",
+    )
+    doctor_parser.add_argument(
+        "--sqlite-path",
+        default=None,
+        help="Override SQLite state path during diagnostics.",
+    )
+    doctor_parser.add_argument(
+        "--experimental-tools",
+        action="store_true",
+        help="Reflect experimental tool mode during diagnostics.",
+    )
+    doctor_parser.add_argument(
+        "--codex-server-name",
+        default="agentRemoteBridge",
+        help="Codex MCP server name to check. Default: agentRemoteBridge",
     )
 
     parser.set_defaults(func=_serve_command)

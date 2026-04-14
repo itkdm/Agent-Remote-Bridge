@@ -62,6 +62,12 @@ agent-remote-bridge start
 agent-remote-bridge codex-register
 ```
 
+如果你想一次性检查本地配置、服务状态和 Codex 注册：
+
+```powershell
+agent-remote-bridge doctor
+```
+
 如果你想停止本地 HTTP MCP server：
 
 ```powershell

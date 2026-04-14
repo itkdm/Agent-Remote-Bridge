@@ -70,6 +70,12 @@ agent-remote-bridge start
 agent-remote-bridge codex-register
 ```
 
+如果你想一次性检查本地环境：
+
+```powershell
+agent-remote-bridge doctor
+```
+
 如果你想停掉本地 HTTP MCP server：
 
 ```powershell

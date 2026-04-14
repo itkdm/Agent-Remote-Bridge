@@ -255,6 +255,19 @@ agent-remote-bridge codex-register
 - 默认名称：`agentRemoteBridge`
 - 默认地址：`http://127.0.0.1:8000/mcp`
 
+### 9. 一次性诊断本地环境
+
+```powershell
+agent-remote-bridge doctor
+```
+
+这个命令会统一检查：
+
+- `config/hosts.yaml` 是否存在
+- 至少是否配置了 1 个主机
+- 本地 HTTP MCP server 是否在线
+- Codex 是否已经注册当前 MCP 地址
+
 ## 命令行参数
 
 ```text
@@ -289,6 +302,14 @@ agent-remote-bridge codex-register [OPTIONS]
 
 --host HOST
 --port PORT
+--codex-server-name NAME
+
+agent-remote-bridge doctor [OPTIONS]
+
+--host HOST
+--port PORT
+--sqlite-path PATH
+--experimental-tools
 --codex-server-name NAME
 ```
 
