@@ -11,6 +11,15 @@ from agent_remote_bridge.utils.errors import RemoteExecutionError, TimeoutError
 
 
 class SSHAdapter(RemoteAdapter):
+    _TRANSIENT_PARAMIKO_PATTERNS = (
+        "error reading ssh protocol banner",
+        "connection reset by peer",
+        "connection reset",
+        "connection aborted",
+        "connection refused",
+        "eoferror",
+    )
+
     def execute(self, host: HostConfig, remote_command: str, timeout_sec: int = 60) -> ExecutionResult:
         if host.auth_mode == "password":
             return self._execute_with_paramiko(host, remote_command, timeout_sec)
@@ -51,38 +60,51 @@ class SSHAdapter(RemoteAdapter):
             raise RemoteExecutionError(f"Host '{host.host_id}' is missing password for password auth")
 
         started = time.perf_counter()
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        try:
-            client.connect(
-                hostname=host.host,
-                port=host.port,
-                username=host.username,
-                password=host.password,
-                timeout=timeout_sec,
-                banner_timeout=timeout_sec,
-                auth_timeout=timeout_sec,
-                look_for_keys=False,
-                allow_agent=False,
-            )
-            _, stdout_stream, stderr_stream = client.exec_command(remote_command, timeout=timeout_sec)
-            exit_code = stdout_stream.channel.recv_exit_status()
-            stdout = stdout_stream.read().decode("utf-8", errors="replace")
-            stderr = stderr_stream.read().decode("utf-8", errors="replace")
-        except TimeoutError:
-            raise
-        except Exception as exc:
-            message = str(exc).lower()
-            if "timed out" in message or "timeout" in message:
-                raise TimeoutError(f"Command timed out after {timeout_sec}s") from exc
-            raise RemoteExecutionError(f"SSH password connection failed: {exc}") from exc
-        finally:
-            client.close()
+        max_attempts = 3
+        last_error: Exception | None = None
 
-        duration_ms = int((time.perf_counter() - started) * 1000)
-        return ExecutionResult(
-            exit_code=exit_code,
-            stdout=stdout,
-            stderr=stderr,
-            duration_ms=duration_ms,
-        )
+        for attempt in range(1, max_attempts + 1):
+            client = paramiko.SSHClient()
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            try:
+                client.connect(
+                    hostname=host.host,
+                    port=host.port,
+                    username=host.username,
+                    password=host.password,
+                    timeout=timeout_sec,
+                    banner_timeout=timeout_sec,
+                    auth_timeout=timeout_sec,
+                    look_for_keys=False,
+                    allow_agent=False,
+                )
+                _, stdout_stream, stderr_stream = client.exec_command(remote_command, timeout=timeout_sec)
+                exit_code = stdout_stream.channel.recv_exit_status()
+                stdout = stdout_stream.read().decode("utf-8", errors="replace")
+                stderr = stderr_stream.read().decode("utf-8", errors="replace")
+                duration_ms = int((time.perf_counter() - started) * 1000)
+                return ExecutionResult(
+                    exit_code=exit_code,
+                    stdout=stdout,
+                    stderr=stderr,
+                    duration_ms=duration_ms,
+                )
+            except TimeoutError:
+                raise
+            except Exception as exc:
+                last_error = exc
+                message = str(exc).lower()
+                if "timed out" in message or "timeout" in message:
+                    raise TimeoutError(f"Command timed out after {timeout_sec}s") from exc
+                if attempt < max_attempts and self._is_transient_paramiko_error(exc):
+                    time.sleep(0.5 * attempt)
+                    continue
+                raise RemoteExecutionError(f"SSH password connection failed: {exc}") from exc
+            finally:
+                client.close()
+
+        raise RemoteExecutionError(f"SSH password connection failed: {last_error}")
+
+    def _is_transient_paramiko_error(self, exc: Exception) -> bool:
+        message = str(exc).lower()
+        return any(pattern in message for pattern in self._TRANSIENT_PARAMIKO_PATTERNS)
