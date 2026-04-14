@@ -233,6 +233,17 @@ agent-remote-bridge stop
 
 这个命令会停止由本项目启动的本地 `streamable-http` MCP server 进程。
 
+### 7. 后台启动本地 HTTP MCP server
+
+```powershell
+agent-remote-bridge start
+```
+
+这个命令会在后台启动本地 `streamable-http` MCP server，并默认监听：
+
+- `127.0.0.1:8000`
+- `http://127.0.0.1:8000/mcp`
+
 ## 命令行参数
 
 ```text
@@ -254,6 +265,14 @@ agent-remote-bridge status [OPTIONS]
 agent-remote-bridge stop [OPTIONS]
 
 --port PORT
+
+agent-remote-bridge start [OPTIONS]
+
+--host HOST
+--port PORT
+--sqlite-path PATH
+--experimental-tools
+--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
 ```
 
 ## 客户端接入

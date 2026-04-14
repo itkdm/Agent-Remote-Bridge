@@ -58,6 +58,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run_server.ps1 --transport st
 agent-remote-bridge status
 ```
 
+如果你想直接在后台启动本地 HTTP MCP server：
+
+```powershell
+agent-remote-bridge start
+```
+
 如果你想停掉本地 HTTP MCP server：
 
 ```powershell

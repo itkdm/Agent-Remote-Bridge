@@ -6,6 +6,7 @@ import os
 import socket
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -123,6 +124,80 @@ def _find_local_http_server_pids(port: int) -> list[int]:
         if line.isdigit():
             pids.append(int(line))
     return pids
+
+
+def _start_command(args: argparse.Namespace) -> int:
+    existing_pids = _find_local_http_server_pids(args.port)
+    payload: dict[str, Any] = {
+        "ok": True,
+        "mode": "start",
+        "host": args.host,
+        "port": args.port,
+        "transport": "streamable-http",
+        "mcp_url": f"http://{args.host}:{args.port}/mcp",
+        "started_pid": None,
+        "message": "",
+    }
+
+    if existing_pids:
+        payload["started_pid"] = existing_pids[0]
+        payload["message"] = "Local Agent Remote Bridge HTTP server is already running."
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0
+
+    project_root = Path.cwd()
+    data_dir = project_root / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    stdout_log = data_dir / "local-mcp-http.out.log"
+    stderr_log = data_dir / "local-mcp-http.err.log"
+
+    command = [
+        sys.executable,
+        "-m",
+        "agent_remote_bridge.main",
+        "serve",
+        "--transport",
+        "streamable-http",
+        "--host",
+        args.host,
+        "--port",
+        str(args.port),
+        "--log-level",
+        args.log_level,
+    ]
+    if args.sqlite_path:
+        command.extend(["--sqlite-path", args.sqlite_path])
+    if args.experimental_tools:
+        command.append("--experimental-tools")
+
+    creationflags = 0
+    if os.name == "nt":
+        creationflags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+
+    with stdout_log.open("ab") as stdout_handle, stderr_log.open("ab") as stderr_handle:
+        process = subprocess.Popen(
+            command,
+            cwd=str(project_root),
+            stdin=subprocess.DEVNULL,
+            stdout=stdout_handle,
+            stderr=stderr_handle,
+            close_fds=True,
+            creationflags=creationflags,
+        )
+        payload["started_pid"] = process.pid
+
+    for _ in range(12):
+        if _probe_tcp(args.host, args.port):
+            payload["message"] = "Started local Agent Remote Bridge HTTP server."
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+            return 0
+
+        time.sleep(0.5)
+
+    payload["ok"] = False
+    payload["message"] = "Failed to start local Agent Remote Bridge HTTP server."
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 1
 
 
 def _stop_command(args: argparse.Namespace) -> int:
@@ -262,6 +337,36 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=8000,
         help="Target port for the local HTTP MCP server. Default: 8000",
+    )
+
+    start_parser = subparsers.add_parser("start", help="Start the local HTTP MCP server in the background.")
+    start_parser.set_defaults(func=_start_command)
+    start_parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Bind host for the local HTTP MCP server. Default: 127.0.0.1",
+    )
+    start_parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Bind port for the local HTTP MCP server. Default: 8000",
+    )
+    start_parser.add_argument(
+        "--sqlite-path",
+        default=None,
+        help="Override SQLite state path for the local HTTP MCP server.",
+    )
+    start_parser.add_argument(
+        "--experimental-tools",
+        action="store_true",
+        help="Expose experimental tools in the local HTTP MCP server.",
+    )
+    start_parser.add_argument(
+        "--log-level",
+        default="ERROR",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Server log level. Default: ERROR",
     )
 
     parser.set_defaults(func=_serve_command)
