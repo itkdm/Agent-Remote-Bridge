@@ -213,6 +213,18 @@ agent-remote-bridge --sqlite-path .\data\state.dev.db
 agent-remote-bridge --experimental-tools
 ```
 
+### 5. 检查本地 MCP server 状态
+
+```powershell
+agent-remote-bridge status
+```
+
+这个命令会检查：
+
+- 本地 `127.0.0.1:8000` 是否在监听
+- `http://127.0.0.1:8000/mcp` 是否可响应
+- Codex 是否已经注册了 `agentRemoteBridge`
+
 ## 命令行参数
 
 ```text
@@ -224,6 +236,12 @@ agent-remote-bridge [OPTIONS]
 --sqlite-path PATH
 --experimental-tools
 --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
+
+agent-remote-bridge status [OPTIONS]
+
+--host HOST
+--port PORT
+--codex-server-name NAME
 ```
 
 ## 客户端接入

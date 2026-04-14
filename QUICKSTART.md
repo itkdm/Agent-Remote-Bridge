@@ -52,6 +52,12 @@ Windows 下也可以：
 powershell -ExecutionPolicy Bypass -File .\scripts\run_server.ps1 --transport stdio
 ```
 
+如果你已经用 HTTP 方式启动，也可以随时检查本地服务状态：
+
+```powershell
+agent-remote-bridge status
+```
+
 ## 4. 在客户端里接入
 
 如果客户端支持本地 `stdio` MCP server，就让它启动：

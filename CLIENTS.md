@@ -44,6 +44,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup_codex_mcp.ps1
 
 运行后重启 Codex Desktop 即可。
 
+如果你想确认本地 HTTP MCP server 当前是否正常，也可以执行：
+
+```powershell
+agent-remote-bridge status
+```
+
 如果你想手动配置，本地 `stdio` MCP server 也可以使用：
 
 ```text
