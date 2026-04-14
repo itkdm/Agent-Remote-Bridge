@@ -64,6 +64,14 @@ agent-remote-bridge --transport stdio
 
 - [.vscode/mcp.json](./.vscode/mcp.json)
 
+如果你使用 Codex Desktop，最短路径是直接运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\setup_codex_mcp.ps1
+```
+
+运行后重启 Codex Desktop 即可。
+
 ## 5. 先试这三个动作
 
 1. `list_hosts`

@@ -31,7 +31,20 @@
 
 ## Codex Desktop
 
-如果客户端支持本地 `stdio` MCP server，可以使用：
+推荐直接使用项目的一键脚本：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\setup_codex_mcp.ps1
+```
+
+这个脚本会：
+
+- 启动本地 `streamable-http` MCP server
+- 把 `http://127.0.0.1:8000/mcp` 注册到 Codex
+
+运行后重启 Codex Desktop 即可。
+
+如果你想手动配置，本地 `stdio` MCP server 也可以使用：
 
 ```text
 command: powershell

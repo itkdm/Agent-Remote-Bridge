@@ -260,6 +260,14 @@ agent-remote-bridge --transport streamable-http --host 127.0.0.1 --port 8000
 
 - [CLIENTS.md](./CLIENTS.md)
 
+如果你使用 Codex Desktop，项目也提供了一键接入脚本：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\setup_codex_mcp.ps1
+```
+
+这个脚本会启动本地 HTTP MCP server，并把它注册到 Codex 的全局 MCP 配置。
+
 ## 推荐使用方式
 
 1. 本地运行 `Agent Remote Bridge`
