@@ -225,6 +225,14 @@ agent-remote-bridge status
 - `http://127.0.0.1:8000/mcp` 是否可响应
 - Codex 是否已经注册了 `agentRemoteBridge`
 
+### 6. 停止本地 HTTP MCP server
+
+```powershell
+agent-remote-bridge stop
+```
+
+这个命令会停止由本项目启动的本地 `streamable-http` MCP server 进程。
+
 ## 命令行参数
 
 ```text
@@ -242,6 +250,10 @@ agent-remote-bridge status [OPTIONS]
 --host HOST
 --port PORT
 --codex-server-name NAME
+
+agent-remote-bridge stop [OPTIONS]
+
+--port PORT
 ```
 
 ## 客户端接入

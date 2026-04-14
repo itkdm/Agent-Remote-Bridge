@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import socket
+import subprocess
 import sys
 import urllib.error
 import urllib.request
@@ -87,6 +88,73 @@ def _read_codex_server_status(server_name: str, url: str) -> dict[str, Any]:
         "config_path": str(config_path),
         "detail": "Server found in Codex config" if registered else "Server not found in Codex config",
     }
+
+
+def _find_local_http_server_pids(port: int) -> list[int]:
+    command = [
+        "powershell",
+        "-NoProfile",
+        "-Command",
+        (
+            f"$pids = Get-NetTCPConnection -LocalPort {port} -ErrorAction SilentlyContinue | "
+            "Select-Object -ExpandProperty OwningProcess -Unique; "
+            "foreach ($procId in $pids) { "
+            '$proc = Get-CimInstance Win32_Process -Filter "ProcessId = $procId"; '
+            "if ($proc -and $proc.Name -eq 'python.exe' -and "
+            "$proc.CommandLine -like '*agent_remote_bridge.main*' -and "
+            "$proc.CommandLine -like '*streamable-http*') { "
+            "Write-Output $procId "
+            "} "
+            "}"
+        ),
+    ]
+    completed = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    if completed.returncode != 0:
+        return []
+    pids: list[int] = []
+    for line in completed.stdout.splitlines():
+        line = line.strip()
+        if line.isdigit():
+            pids.append(int(line))
+    return pids
+
+
+def _stop_command(args: argparse.Namespace) -> int:
+    pids = _find_local_http_server_pids(args.port)
+    payload: dict[str, Any] = {
+        "ok": True,
+        "mode": "stop",
+        "port": args.port,
+        "stopped_pids": [],
+        "message": "",
+    }
+    if not pids:
+        payload["message"] = "No local Agent Remote Bridge HTTP server process found."
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0
+
+    stopped: list[int] = []
+    for proc_id in pids:
+        try:
+            os.kill(proc_id, 9)
+            stopped.append(proc_id)
+        except OSError as exc:
+            payload["ok"] = False
+            payload["message"] = f"Failed to stop process {proc_id}: {exc}"
+            payload["stopped_pids"] = stopped
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+            return 1
+
+    payload["stopped_pids"] = stopped
+    payload["message"] = "Stopped local Agent Remote Bridge HTTP server."
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
 
 
 def _status_command(args: argparse.Namespace) -> int:
@@ -185,6 +253,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--codex-server-name",
         default="agentRemoteBridge",
         help="Codex MCP server name to check in ~/.codex/config.toml. Default: agentRemoteBridge",
+    )
+
+    stop_parser = subparsers.add_parser("stop", help="Stop the local HTTP MCP server process.")
+    stop_parser.set_defaults(func=_stop_command)
+    stop_parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Target port for the local HTTP MCP server. Default: 8000",
     )
 
     parser.set_defaults(func=_serve_command)
