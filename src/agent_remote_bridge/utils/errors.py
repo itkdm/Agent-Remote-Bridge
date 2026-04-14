@@ -22,3 +22,15 @@ class RemoteExecutionError(BridgeError):
 
 class TimeoutError(BridgeError):
     error_type = "command_timeout"
+
+
+class SSHAuthError(RemoteExecutionError):
+    error_type = "ssh_auth_failed"
+
+
+class SSHBannerError(RemoteExecutionError):
+    error_type = "ssh_banner_error"
+
+
+class SSHConnectionError(RemoteExecutionError):
+    error_type = "ssh_connection_error"

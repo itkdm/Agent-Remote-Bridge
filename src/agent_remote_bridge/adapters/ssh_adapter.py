@@ -7,7 +7,13 @@ import paramiko
 
 from agent_remote_bridge.adapters.base import ExecutionResult, RemoteAdapter
 from agent_remote_bridge.models import HostConfig
-from agent_remote_bridge.utils.errors import RemoteExecutionError, TimeoutError
+from agent_remote_bridge.utils.errors import (
+    RemoteExecutionError,
+    SSHAuthError,
+    SSHBannerError,
+    SSHConnectionError,
+    TimeoutError,
+)
 
 
 class SSHAdapter(RemoteAdapter):
@@ -99,12 +105,37 @@ class SSHAdapter(RemoteAdapter):
                 if attempt < max_attempts and self._is_transient_paramiko_error(exc):
                     time.sleep(0.5 * attempt)
                     continue
-                raise RemoteExecutionError(f"SSH password connection failed: {exc}") from exc
+                raise self._classify_paramiko_error(exc) from exc
             finally:
                 client.close()
 
-        raise RemoteExecutionError(f"SSH password connection failed: {last_error}")
+        raise self._classify_paramiko_error(last_error)
 
     def _is_transient_paramiko_error(self, exc: Exception) -> bool:
         message = str(exc).lower()
         return any(pattern in message for pattern in self._TRANSIENT_PARAMIKO_PATTERNS)
+
+    def _classify_paramiko_error(self, exc: Exception | None) -> RemoteExecutionError:
+        if exc is None:
+            return RemoteExecutionError("SSH password connection failed: unknown error")
+
+        message = str(exc)
+        lowered = message.lower()
+
+        if "authentication failed" in lowered or "auth failed" in lowered or "permission denied" in lowered:
+            return SSHAuthError(f"SSH authentication failed: {message}")
+        if "error reading ssh protocol banner" in lowered or "banner" in lowered:
+            return SSHBannerError(f"SSH banner error: {message}")
+        if (
+            "connection refused" in lowered
+            or "connection reset" in lowered
+            or "connection aborted" in lowered
+            or "unable to connect" in lowered
+            or "network is unreachable" in lowered
+            or "no route to host" in lowered
+            or "name or service not known" in lowered
+            or "getaddrinfo failed" in lowered
+            or "eoferror" in lowered
+        ):
+            return SSHConnectionError(f"SSH connection failed: {message}")
+        return RemoteExecutionError(f"SSH password connection failed: {message}")
