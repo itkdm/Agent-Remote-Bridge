@@ -24,6 +24,7 @@ class ResponseEnvelope(BaseModel):
     message: str
     data: dict | list | None = None
     warnings: list[str] = Field(default_factory=list)
+    suggested_next_actions: list[str] = Field(default_factory=list)
     risk_flags: list[str] = Field(default_factory=list)
     truncated: bool = False
     error_type: str | None = None
