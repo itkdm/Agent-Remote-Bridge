@@ -39,3 +39,21 @@ class AuditService:
                 error_type=error_type,
             )
         )
+
+    def list_recent(
+        self,
+        *,
+        limit: int = 20,
+        host_id: str | None = None,
+        session_id: str | None = None,
+        tool_name: str | None = None,
+        only_failures: bool = False,
+    ) -> list[dict]:
+        records = self._store.list_recent(
+            limit=limit,
+            host_id=host_id,
+            session_id=session_id,
+            tool_name=tool_name,
+            only_failures=only_failures,
+        )
+        return [record.model_dump(mode="json") for record in records]

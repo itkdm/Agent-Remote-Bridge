@@ -271,6 +271,14 @@ agent-remote-bridge doctor
 - 本地 HTTP MCP server 是否在线
 - Codex 是否已经注册当前 MCP 地址
 
+### 10. 查看最近本地审计记录
+
+```powershell
+agent-remote-bridge audit recent
+```
+
+这个命令支持查看最近的本地操作记录，也支持按主机、session、工具名和失败状态过滤。
+
 ## 命令行参数
 
 ```text
@@ -314,6 +322,14 @@ agent-remote-bridge doctor [OPTIONS]
 --sqlite-path PATH
 --experimental-tools
 --codex-server-name NAME
+
+agent-remote-bridge audit recent [OPTIONS]
+
+--limit N
+--host-id HOST_ID
+--session-id SESSION_ID
+--tool-name TOOL_NAME
+--only-failures
 ```
 
 ## 客户端接入

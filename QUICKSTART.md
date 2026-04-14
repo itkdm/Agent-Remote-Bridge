@@ -76,6 +76,12 @@ agent-remote-bridge codex-register
 agent-remote-bridge doctor
 ```
 
+如果你想查看最近的本地操作记录：
+
+```powershell
+agent-remote-bridge audit recent
+```
+
 如果你想停掉本地 HTTP MCP server：
 
 ```powershell

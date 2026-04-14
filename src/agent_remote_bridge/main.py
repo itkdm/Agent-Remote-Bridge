@@ -13,7 +13,9 @@ from pathlib import Path
 from typing import Any
 
 from agent_remote_bridge.server import create_server
+from agent_remote_bridge.services.audit_service import AuditService
 from agent_remote_bridge.settings import load_settings
+from agent_remote_bridge.stores.audit_store import AuditStore
 from agent_remote_bridge.stores.host_store import HostStore
 
 
@@ -381,6 +383,35 @@ def _doctor_command(args: argparse.Namespace) -> int:
     return 0 if payload["ok"] else 1
 
 
+def _audit_recent_command(args: argparse.Namespace) -> int:
+    _apply_runtime_env(args)
+    settings = load_settings()
+    audit_store = AuditStore(settings.sqlite_path)
+    audit_service = AuditService(audit_store)
+    records = audit_service.list_recent(
+        limit=args.limit,
+        host_id=args.host_id,
+        session_id=args.session_id,
+        tool_name=args.tool_name,
+        only_failures=args.only_failures,
+    )
+    payload = {
+        "ok": True,
+        "mode": "audit_recent",
+        "filters": {
+            "limit": args.limit,
+            "host_id": args.host_id,
+            "session_id": args.session_id,
+            "tool_name": args.tool_name,
+            "only_failures": args.only_failures,
+        },
+        "count": len(records),
+        "records": records,
+    }
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
 def _serve_command(args: argparse.Namespace) -> int:
     _apply_runtime_env(args)
     server = create_server(
@@ -545,6 +576,44 @@ def build_parser() -> argparse.ArgumentParser:
         "--codex-server-name",
         default="agentRemoteBridge",
         help="Codex MCP server name to check. Default: agentRemoteBridge",
+    )
+
+    audit_parser = subparsers.add_parser(
+        "audit",
+        help="Inspect local audit records.",
+    )
+    audit_subparsers = audit_parser.add_subparsers(dest="audit_command")
+
+    audit_recent_parser = audit_subparsers.add_parser(
+        "recent",
+        help="Show recent local audit records.",
+    )
+    audit_recent_parser.set_defaults(func=_audit_recent_command)
+    audit_recent_parser.add_argument(
+        "--limit",
+        type=int,
+        default=20,
+        help="Maximum number of audit records to return. Default: 20",
+    )
+    audit_recent_parser.add_argument(
+        "--host-id",
+        default=None,
+        help="Filter by host_id.",
+    )
+    audit_recent_parser.add_argument(
+        "--session-id",
+        default=None,
+        help="Filter by session_id.",
+    )
+    audit_recent_parser.add_argument(
+        "--tool-name",
+        default=None,
+        help="Filter by tool_name.",
+    )
+    audit_recent_parser.add_argument(
+        "--only-failures",
+        action="store_true",
+        help="Only include blocked or failed audit records.",
     )
 
     parser.set_defaults(func=_serve_command)
