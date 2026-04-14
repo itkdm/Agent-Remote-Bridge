@@ -91,6 +91,19 @@ def _read_codex_server_status(server_name: str, url: str) -> dict[str, Any]:
     }
 
 
+def _run_codex_command(arguments: list[str]) -> subprocess.CompletedProcess[str]:
+    executable = "codex"
+    if os.name == "nt":
+        executable = "codex.cmd"
+    return subprocess.run(
+        [executable, *arguments],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+
 def _find_local_http_server_pids(port: int) -> list[int]:
     command = [
         "powershell",
@@ -257,6 +270,49 @@ def _status_command(args: argparse.Namespace) -> int:
     return 0 if payload["ok"] else 1
 
 
+def _codex_register_command(args: argparse.Namespace) -> int:
+    url = f"http://{args.host}:{args.port}/mcp"
+    list_result = _run_codex_command(["mcp", "list"])
+    if list_result.returncode != 0:
+        payload = {
+            "ok": False,
+            "mode": "codex-register",
+            "server_name": args.codex_server_name,
+            "mcp_url": url,
+            "message": "Failed to inspect existing Codex MCP servers.",
+            "stderr": list_result.stderr.strip(),
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 1
+
+    if args.codex_server_name in list_result.stdout:
+        remove_result = _run_codex_command(["mcp", "remove", args.codex_server_name])
+        if remove_result.returncode != 0:
+            payload = {
+                "ok": False,
+                "mode": "codex-register",
+                "server_name": args.codex_server_name,
+                "mcp_url": url,
+                "message": "Failed to replace existing Codex MCP server registration.",
+                "stderr": remove_result.stderr.strip(),
+            }
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+            return 1
+
+    add_result = _run_codex_command(["mcp", "add", args.codex_server_name, "--url", url])
+    payload = {
+        "ok": add_result.returncode == 0,
+        "mode": "codex-register",
+        "server_name": args.codex_server_name,
+        "mcp_url": url,
+        "message": "Registered MCP server in Codex." if add_result.returncode == 0 else "Failed to register MCP server in Codex.",
+        "stdout": add_result.stdout.strip(),
+        "stderr": add_result.stderr.strip(),
+    }
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0 if add_result.returncode == 0 else 1
+
+
 def _serve_command(args: argparse.Namespace) -> int:
     _apply_runtime_env(args)
     server = create_server(
@@ -367,6 +423,28 @@ def build_parser() -> argparse.ArgumentParser:
         default="ERROR",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Server log level. Default: ERROR",
+    )
+
+    codex_register_parser = subparsers.add_parser(
+        "codex-register",
+        help="Register the local HTTP MCP server URL in Codex.",
+    )
+    codex_register_parser.set_defaults(func=_codex_register_command)
+    codex_register_parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host for the local HTTP MCP server. Default: 127.0.0.1",
+    )
+    codex_register_parser.add_argument(
+        "--port",
+        type=int,
+        default=8000,
+        help="Port for the local HTTP MCP server. Default: 8000",
+    )
+    codex_register_parser.add_argument(
+        "--codex-server-name",
+        default="agentRemoteBridge",
+        help="Codex MCP server name to register. Default: agentRemoteBridge",
     )
 
     parser.set_defaults(func=_serve_command)

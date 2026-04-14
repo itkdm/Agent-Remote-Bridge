@@ -64,6 +64,12 @@ agent-remote-bridge status
 agent-remote-bridge start
 ```
 
+如果你想把本地 MCP 地址注册到 Codex：
+
+```powershell
+agent-remote-bridge codex-register
+```
+
 如果你想停掉本地 HTTP MCP server：
 
 ```powershell

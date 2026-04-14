@@ -244,6 +244,17 @@ agent-remote-bridge start
 - `127.0.0.1:8000`
 - `http://127.0.0.1:8000/mcp`
 
+### 8. 注册到 Codex
+
+```powershell
+agent-remote-bridge codex-register
+```
+
+这个命令会把本地 MCP 地址注册到 Codex：
+
+- 默认名称：`agentRemoteBridge`
+- 默认地址：`http://127.0.0.1:8000/mcp`
+
 ## 命令行参数
 
 ```text
@@ -273,6 +284,12 @@ agent-remote-bridge start [OPTIONS]
 --sqlite-path PATH
 --experimental-tools
 --log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
+
+agent-remote-bridge codex-register [OPTIONS]
+
+--host HOST
+--port PORT
+--codex-server-name NAME
 ```
 
 ## 客户端接入
