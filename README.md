@@ -161,8 +161,9 @@ hosts:
 
 注意：
 
-- 当前支持密码登录
-- 长期使用建议切换到 SSH key
+- 长期使用优先选择 `key_path` 或 `ssh_config`
+- 如果使用 `key_path`，`config-validate` 会检查私钥文件是否存在于本机
+- 当前仍支持密码登录
 - 不建议把真实密码提交到仓库
 - 推荐用 `password_env` 代替明文 `password`
 - 密码登录模式会自动重试少量瞬时 SSH 建连抖动

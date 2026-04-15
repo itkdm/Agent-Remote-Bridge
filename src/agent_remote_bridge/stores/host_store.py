@@ -123,12 +123,32 @@ class HostStore:
                     host_errors.append("password auth requires either password or password_env.")
                 if host.password_env and not os.environ.get(host.password_env):
                     host_errors.append(f"password_env is set but environment variable is missing: {host.password_env}")
+                if host.private_key_path:
+                    host_warnings.append("private_key_path is ignored for password auth.")
+                if host.ssh_config_host:
+                    host_warnings.append("ssh_config_host is ignored for password auth.")
             elif host.auth_mode == "key_path":
                 if not (host.private_key_path and host.private_key_path.strip()):
                     host_errors.append("private_key_path is required for key_path auth.")
+                else:
+                    key_path = Path(host.private_key_path).expanduser()
+                    if not key_path.is_absolute():
+                        host_warnings.append("private_key_path should be an absolute local path.")
+                    if not key_path.exists():
+                        host_errors.append(f"private_key_path does not exist on this machine: {key_path}")
+                    elif not key_path.is_file():
+                        host_errors.append(f"private_key_path is not a file: {key_path}")
+                if host.password or host.password_env:
+                    host_warnings.append("password and password_env are ignored for key_path auth.")
+                if host.ssh_config_host:
+                    host_warnings.append("ssh_config_host is ignored for key_path auth.")
             elif host.auth_mode == "ssh_config":
                 if not (host.ssh_config_host and host.ssh_config_host.strip()):
                     host_errors.append("ssh_config_host is required for ssh_config auth.")
+                if host.private_key_path:
+                    host_warnings.append("private_key_path is ignored for ssh_config auth; configure the key in your SSH config.")
+                if host.password or host.password_env:
+                    host_warnings.append("password and password_env are ignored for ssh_config auth.")
 
             if host.allow_sudo and host.username != "root":
                 host_warnings.append("allow_sudo is enabled for a non-root user; confirm sudo is configured.")
@@ -137,6 +157,10 @@ class HostStore:
                 host_warnings.append("Plaintext password is stored in hosts.yaml; prefer password_env.")
             if host.auth_mode == "password" and host.password and host.password_env:
                 host_warnings.append("password_env will take precedence over plaintext password.")
+            if host.auth_mode == "key_path":
+                host_warnings.append("SSH key auth is preferred for long-term use.")
+            if host.auth_mode == "ssh_config":
+                host_warnings.append("SSH config auth is preferred when you already manage hosts in ~/.ssh/config.")
 
             if host.host in {"YOUR_SERVER_IP", "CHANGE_ME", "example.com"}:
                 host_warnings.append("Host still looks like a placeholder value.")

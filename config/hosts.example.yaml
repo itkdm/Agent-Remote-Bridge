@@ -1,19 +1,39 @@
 hosts:
-  - host_id: staging-1
-    alias: staging
-    host: 10.0.0.12
+  - host_id: ssh-key-host
+    alias: ssh-key
+    host: YOUR_SERVER_IP
     port: 22
-    username: deploy
-    auth_mode: ssh_config
-    ssh_config_host: staging
-    default_workdir: /srv/myapp
+    username: root
+    auth_mode: key_path
+    private_key_path: C:/Users/YOUR_USER/.ssh/id_ed25519
+    default_workdir: /root
     allowed_paths:
-      - /srv/myapp
-      - /var/log/myapp
-      - /etc/myapp
-    allow_sudo: false
+      - /root
+      - /etc
+      - /tmp
+      - /var/log
+    allow_sudo: true
     tags:
-      - staging
+      - preferred
+      - key
+      - linux
+  - host_id: ssh-config-host
+    alias: ssh-config
+    host: YOUR_SERVER_IP
+    port: 22
+    username: root
+    auth_mode: ssh_config
+    ssh_config_host: my-server
+    default_workdir: /root
+    allowed_paths:
+      - /root
+      - /etc
+      - /tmp
+      - /var/log
+    allow_sudo: true
+    tags:
+      - preferred
+      - ssh-config
       - linux
   - host_id: demo-password-host
     alias: demo-password
