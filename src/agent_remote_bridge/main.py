@@ -14,6 +14,7 @@ from typing import Any
 
 from agent_remote_bridge.server import create_server
 from agent_remote_bridge.services.audit_service import AuditService
+from agent_remote_bridge.services.host_service import HostService
 from agent_remote_bridge.settings import load_settings
 from agent_remote_bridge.stores.audit_store import AuditStore
 from agent_remote_bridge.stores.host_store import HostStore
@@ -392,6 +393,63 @@ def _config_validate_command(args: argparse.Namespace) -> int:
     return 0 if payload["ok"] else 1
 
 
+def _preflight_command(args: argparse.Namespace) -> int:
+    _apply_runtime_env(args)
+    settings = load_settings()
+    config_path = Path(args.config_path) if args.config_path else settings.host_config_path
+    host_store = HostStore(config_path)
+    audit_store = AuditStore(settings.sqlite_path)
+    audit_service = AuditService(audit_store)
+    validation = host_store.validate_config()
+
+    stage_config = {
+        "name": "config",
+        "ok": False,
+        "detail": "",
+        "error_type": None,
+    }
+    matching_host = next((item for item in validation["hosts"] if item["host_id"] == args.host_id), None)
+    if not validation["ok"] and not matching_host:
+        stage_config["detail"] = f"Host '{args.host_id}' is not present in {validation['path']}"
+        stage_config["error_type"] = "config_error"
+        payload = {
+            "ok": False,
+            "mode": "preflight",
+            "host_id": args.host_id,
+            "summary": "Remote preflight failed at config",
+            "stages": [stage_config],
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 1
+
+    if matching_host and matching_host["ok"]:
+        stage_config["ok"] = True
+        stage_config["detail"] = "Host config is valid"
+    else:
+        errors = matching_host["errors"] if matching_host else [f"Host '{args.host_id}' not found"]
+        stage_config["detail"] = "; ".join(errors)
+        stage_config["error_type"] = "config_error"
+        payload = {
+            "ok": False,
+            "mode": "preflight",
+            "host_id": args.host_id,
+            "summary": "Remote preflight failed at config",
+            "stages": [stage_config],
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 1
+
+    from agent_remote_bridge.adapters.ssh_adapter import SSHAdapter
+
+    host_service = HostService(adapter=SSHAdapter(), audit_service=audit_service)
+    host = host_store.get_host(args.host_id)
+    result = host_service.preflight(host, timeout_sec=args.timeout_sec)
+    result["mode"] = "preflight"
+    result["stages"] = [stage_config, *result["stages"]]
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0 if result["ok"] else 1
+
+
 def _audit_recent_command(args: argparse.Namespace) -> int:
     _apply_runtime_env(args)
     settings = load_settings()
@@ -606,6 +664,38 @@ def build_parser() -> argparse.ArgumentParser:
         "--experimental-tools",
         action="store_true",
         help="Reflect experimental tool mode during validation.",
+    )
+
+    preflight_parser = subparsers.add_parser(
+        "preflight",
+        help="Run a structured remote connectivity preflight for a configured host.",
+    )
+    preflight_parser.set_defaults(func=_preflight_command)
+    preflight_parser.add_argument(
+        "--host-id",
+        required=True,
+        help="Configured host_id to preflight.",
+    )
+    preflight_parser.add_argument(
+        "--timeout-sec",
+        type=int,
+        default=15,
+        help="Timeout in seconds for each preflight stage. Default: 15",
+    )
+    preflight_parser.add_argument(
+        "--config-path",
+        default=None,
+        help="Use a specific host config file instead of the default config/hosts.yaml.",
+    )
+    preflight_parser.add_argument(
+        "--sqlite-path",
+        default=None,
+        help="Override SQLite state path during preflight.",
+    )
+    preflight_parser.add_argument(
+        "--experimental-tools",
+        action="store_true",
+        help="Reflect experimental tool mode during preflight.",
     )
 
     audit_parser = subparsers.add_parser(

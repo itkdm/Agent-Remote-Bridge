@@ -94,6 +94,12 @@ agent-remote-bridge audit recent
 agent-remote-bridge config-validate
 ```
 
+如果你想在真正执行命令前先确认远程连通链路：
+
+```powershell
+agent-remote-bridge preflight --host-id demo-server
+```
+
 如果你想停掉本地 HTTP MCP server：
 
 ```powershell

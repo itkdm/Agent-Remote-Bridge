@@ -293,6 +293,19 @@ agent-remote-bridge config-validate
 ```
 
 这个命令会在真正连接远端之前检查 `config/hosts.yaml` 的结构、认证组合、路径配置和明显的占位值问题。
+### 12. 运行远程连接预检
+
+```powershell
+agent-remote-bridge preflight --host-id demo-server
+```
+
+这个命令会按阶段检查：
+
+- 主机配置是否有效
+- DNS / IP 是否可解析
+- TCP 22 端口是否可达
+- SSH banner 是否正常
+- 认证是否成功
 
 ## 命令行参数
 
@@ -348,6 +361,14 @@ agent-remote-bridge audit recent [OPTIONS]
 
 agent-remote-bridge config-validate [OPTIONS]
 
+--config-path PATH
+--sqlite-path PATH
+--experimental-tools
+
+agent-remote-bridge preflight [OPTIONS]
+
+--host-id HOST_ID
+--timeout-sec N
 --config-path PATH
 --sqlite-path PATH
 --experimental-tools
