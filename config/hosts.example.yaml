@@ -21,7 +21,7 @@ hosts:
     port: 22
     username: root
     auth_mode: password
-    password: CHANGE_ME
+    password_env: ARB_DEMO_SERVER_PASSWORD
     default_workdir: /root
     allowed_paths:
       - /root

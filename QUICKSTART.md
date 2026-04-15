@@ -30,7 +30,7 @@ hosts:
     port: 22
     username: root
     auth_mode: password
-    password: YOUR_PASSWORD
+    password_env: ARB_DEMO_SERVER_PASSWORD
     default_workdir: /root
     allowed_paths:
       - /root
@@ -38,6 +38,12 @@ hosts:
       - /tmp
       - /var/log
     allow_sudo: true
+```
+
+然后在本地设置环境变量：
+
+```powershell
+$env:ARB_DEMO_SERVER_PASSWORD="YOUR_PASSWORD"
 ```
 
 ## 3. 启动 MCP Server

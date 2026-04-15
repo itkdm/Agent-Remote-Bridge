@@ -62,8 +62,10 @@ class SSHAdapter(RemoteAdapter):
         )
 
     def _execute_with_paramiko(self, host: HostConfig, remote_command: str, timeout_sec: int) -> ExecutionResult:
-        if not host.password:
-            raise RemoteExecutionError(f"Host '{host.host_id}' is missing password for password auth")
+        password = host.resolved_password()
+        if not password:
+            source = f"environment variable '{host.password_env}'" if host.password_env else "host config password"
+            raise SSHAuthError(f"SSH authentication failed: missing password from {source}")
 
         started = time.perf_counter()
         max_attempts = 3
@@ -77,7 +79,7 @@ class SSHAdapter(RemoteAdapter):
                     hostname=host.host,
                     port=host.port,
                     username=host.username,
-                    password=host.password,
+                    password=password,
                     timeout=timeout_sec,
                     banner_timeout=timeout_sec,
                     auth_timeout=timeout_sec,

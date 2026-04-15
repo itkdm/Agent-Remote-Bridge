@@ -136,7 +136,7 @@ Copy-Item .\config\hosts.example.yaml .\config\hosts.yaml
 - 对外分享时，以 `config/hosts.example.yaml` 为准
 - 详细说明见 [config/README.md](./config/README.md)
 
-密码登录示例：
+推荐的密码登录示例：
 
 ```yaml
 hosts:
@@ -146,7 +146,7 @@ hosts:
     port: 22
     username: root
     auth_mode: password
-    password: YOUR_PASSWORD
+    password_env: ARB_DEMO_SERVER_PASSWORD
     default_workdir: /root
     allowed_paths:
       - /root
@@ -164,9 +164,16 @@ hosts:
 - 当前支持密码登录
 - 长期使用建议切换到 SSH key
 - 不建议把真实密码提交到仓库
+- 推荐用 `password_env` 代替明文 `password`
 - 密码登录模式会自动重试少量瞬时 SSH 建连抖动
 - SSH 连接失败会尽量区分认证失败、banner 异常和连接异常
 - SSH 相关错误返回会附带更直接的下一步排查建议
+
+环境变量示例：
+
+```powershell
+$env:ARB_DEMO_SERVER_PASSWORD="YOUR_PASSWORD"
+```
 
 ## 启动
 

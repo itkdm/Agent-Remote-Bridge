@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+import os
 from pathlib import Path
 from typing import Any
 
@@ -118,8 +119,10 @@ class HostStore:
             if host.auth_mode == "password":
                 if not host.username.strip():
                     host_errors.append("username is required for password auth.")
-                if not (host.password and host.password.strip()):
-                    host_errors.append("password is required for password auth.")
+                if not ((host.password and host.password.strip()) or (host.password_env and host.password_env.strip())):
+                    host_errors.append("password auth requires either password or password_env.")
+                if host.password_env and not os.environ.get(host.password_env):
+                    host_errors.append(f"password_env is set but environment variable is missing: {host.password_env}")
             elif host.auth_mode == "key_path":
                 if not (host.private_key_path and host.private_key_path.strip()):
                     host_errors.append("private_key_path is required for key_path auth.")
@@ -131,7 +134,9 @@ class HostStore:
                 host_warnings.append("allow_sudo is enabled for a non-root user; confirm sudo is configured.")
 
             if host.auth_mode == "password" and host.password:
-                host_warnings.append("Plaintext password is stored in hosts.yaml; prefer environment-based credentials.")
+                host_warnings.append("Plaintext password is stored in hosts.yaml; prefer password_env.")
+            if host.auth_mode == "password" and host.password and host.password_env:
+                host_warnings.append("password_env will take precedence over plaintext password.")
 
             if host.host in {"YOUR_SERVER_IP", "CHANGE_ME", "example.com"}:
                 host_warnings.append("Host still looks like a placeholder value.")
