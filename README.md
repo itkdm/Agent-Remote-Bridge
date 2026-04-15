@@ -285,6 +285,7 @@ agent-remote-bridge audit recent
 ```
 
 这个命令支持查看最近的本地操作记录，也支持按主机、session、工具名和失败状态过滤。
+对于 `exec_remote`，审计记录会保留执行耗时、是否触发 SSH 重试、stderr 首条摘要，以及当前可操作的下一步建议。
 
 ### 11. 校验本地主机配置
 

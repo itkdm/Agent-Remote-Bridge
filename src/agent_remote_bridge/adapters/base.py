@@ -9,6 +9,8 @@ class ExecutionResult:
     stdout: str
     stderr: str
     duration_ms: int
+    retry_count: int = 0
+    retried: bool = False
 
 
 class RemoteAdapter:

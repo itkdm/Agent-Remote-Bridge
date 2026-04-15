@@ -8,7 +8,10 @@ class CommandResult(BaseModel):
     exit_code: int
     stdout: str = ""
     stderr: str = ""
+    stderr_preview: str | None = None
     duration_ms: int
+    retry_count: int = 0
+    retried: bool = False
     cwd_after: str
     truncated: bool = False
     summary: str

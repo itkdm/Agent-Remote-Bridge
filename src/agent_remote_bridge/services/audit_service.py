@@ -22,7 +22,12 @@ class AuditService:
         risk_level: str = "low",
         blocked: bool = False,
         exit_code: int | None = None,
+        duration_ms: int | None = None,
+        retry_count: int = 0,
+        retried: bool = False,
+        stderr_preview: str | None = None,
         error_type: str | None = None,
+        suggested_next_actions: list[str] | None = None,
     ) -> None:
         self._store.write(
             AuditRecord(
@@ -35,8 +40,13 @@ class AuditService:
                 risk_level=risk_level,
                 blocked=blocked,
                 exit_code=exit_code,
+                duration_ms=duration_ms,
+                retry_count=retry_count,
+                retried=retried,
+                stderr_preview=stderr_preview,
                 summary=summary,
                 error_type=error_type,
+                suggested_next_actions=suggested_next_actions or [],
             )
         )
 

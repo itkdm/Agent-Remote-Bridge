@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AuditRecord(BaseModel):
@@ -15,5 +15,10 @@ class AuditRecord(BaseModel):
     risk_level: str = "low"
     blocked: bool = False
     exit_code: int | None = None
+    duration_ms: int | None = None
+    retry_count: int = 0
+    retried: bool = False
+    stderr_preview: str | None = None
     summary: str
     error_type: str | None = None
+    suggested_next_actions: list[str] = Field(default_factory=list)

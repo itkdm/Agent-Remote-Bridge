@@ -59,13 +59,17 @@ class SSHAdapter(RemoteAdapter):
             stdout=completed.stdout,
             stderr=completed.stderr,
             duration_ms=duration_ms,
+            retry_count=0,
+            retried=False,
         )
 
     def _execute_with_paramiko(self, host: HostConfig, remote_command: str, timeout_sec: int) -> ExecutionResult:
         password = host.resolved_password()
         if not password:
             source = f"environment variable '{host.password_env}'" if host.password_env else "host config password"
-            raise SSHAuthError(f"SSH authentication failed: missing password from {source}")
+            error = SSHAuthError(f"SSH authentication failed: missing password from {source}")
+            self._attach_retry_metadata(error, retry_count=0)
+            raise error
 
         started = time.perf_counter()
         max_attempts = 3
@@ -96,6 +100,8 @@ class SSHAdapter(RemoteAdapter):
                     stdout=stdout,
                     stderr=stderr,
                     duration_ms=duration_ms,
+                    retry_count=attempt - 1,
+                    retried=attempt > 1,
                 )
             except TimeoutError:
                 raise
@@ -103,15 +109,21 @@ class SSHAdapter(RemoteAdapter):
                 last_error = exc
                 message = str(exc).lower()
                 if "timed out" in message or "timeout" in message:
-                    raise TimeoutError(f"Command timed out after {timeout_sec}s") from exc
+                    timeout_error = TimeoutError(f"Command timed out after {timeout_sec}s")
+                    self._attach_retry_metadata(timeout_error, retry_count=attempt - 1)
+                    raise timeout_error from exc
                 if attempt < max_attempts and self._is_transient_paramiko_error(exc):
                     time.sleep(0.5 * attempt)
                     continue
-                raise self._classify_paramiko_error(exc) from exc
+                classified = self._classify_paramiko_error(exc)
+                self._attach_retry_metadata(classified, retry_count=attempt - 1)
+                raise classified from exc
             finally:
                 client.close()
 
-        raise self._classify_paramiko_error(last_error)
+        classified = self._classify_paramiko_error(last_error)
+        self._attach_retry_metadata(classified, retry_count=max_attempts - 1)
+        raise classified
 
     def _is_transient_paramiko_error(self, exc: Exception) -> bool:
         message = str(exc).lower()
@@ -141,3 +153,8 @@ class SSHAdapter(RemoteAdapter):
         ):
             return SSHConnectionError(f"SSH connection failed: {message}")
         return RemoteExecutionError(f"SSH password connection failed: {message}")
+
+    @staticmethod
+    def _attach_retry_metadata(exc: Exception, *, retry_count: int) -> None:
+        setattr(exc, "retry_count", max(retry_count, 0))
+        setattr(exc, "retried", retry_count > 0)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 
@@ -28,11 +29,27 @@ class AuditStore:
                     risk_level TEXT NOT NULL,
                     blocked INTEGER NOT NULL,
                     exit_code INTEGER,
+                    duration_ms INTEGER,
+                    retry_count INTEGER NOT NULL DEFAULT 0,
+                    retried INTEGER NOT NULL DEFAULT 0,
+                    stderr_preview TEXT,
                     summary TEXT NOT NULL,
-                    error_type TEXT
+                    error_type TEXT,
+                    suggested_next_actions TEXT NOT NULL DEFAULT '[]'
                 )
                 """
             )
+            self._ensure_column(conn, "duration_ms", "INTEGER")
+            self._ensure_column(conn, "retry_count", "INTEGER NOT NULL DEFAULT 0")
+            self._ensure_column(conn, "retried", "INTEGER NOT NULL DEFAULT 0")
+            self._ensure_column(conn, "stderr_preview", "TEXT")
+            self._ensure_column(conn, "suggested_next_actions", "TEXT NOT NULL DEFAULT '[]'")
+
+    @staticmethod
+    def _ensure_column(conn: sqlite3.Connection, column_name: str, definition: str) -> None:
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(audit_records)").fetchall()}
+        if column_name not in columns:
+            conn.execute(f"ALTER TABLE audit_records ADD COLUMN {column_name} {definition}")
 
     def write(self, record: AuditRecord) -> None:
         with self._connect() as conn:
@@ -40,8 +57,9 @@ class AuditStore:
                 """
                 INSERT INTO audit_records (
                     audit_id, timestamp, host_id, session_id, tool_name, command,
-                    risk_level, blocked, exit_code, summary, error_type
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    risk_level, blocked, exit_code, duration_ms, retry_count, retried,
+                    stderr_preview, summary, error_type, suggested_next_actions
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     record.audit_id,
@@ -53,8 +71,13 @@ class AuditStore:
                     record.risk_level,
                     int(record.blocked),
                     record.exit_code,
+                    record.duration_ms,
+                    record.retry_count,
+                    int(record.retried),
+                    record.stderr_preview,
                     record.summary,
                     record.error_type,
+                    json.dumps(record.suggested_next_actions, ensure_ascii=False),
                 ),
             )
 
@@ -78,8 +101,13 @@ class AuditStore:
                 risk_level,
                 blocked,
                 exit_code,
+                duration_ms,
+                retry_count,
+                retried,
+                stderr_preview,
                 summary,
-                error_type
+                error_type,
+                suggested_next_actions
             FROM audit_records
             WHERE 1 = 1
         """
@@ -114,8 +142,13 @@ class AuditStore:
                     risk_level=row[6],
                     blocked=bool(row[7]),
                     exit_code=row[8],
-                    summary=row[9],
-                    error_type=row[10],
+                    duration_ms=row[9],
+                    retry_count=row[10] or 0,
+                    retried=bool(row[11]),
+                    stderr_preview=row[12],
+                    summary=row[13],
+                    error_type=row[14],
+                    suggested_next_actions=json.loads(row[15] or "[]"),
                 )
             )
         return records
