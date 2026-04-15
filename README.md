@@ -277,6 +277,7 @@ agent-remote-bridge doctor
 - 至少是否配置了 1 个主机
 - 本地 HTTP MCP server 是否在线
 - Codex 是否已经注册当前 MCP 地址
+- 如果只配置了 1 个可用主机，或显式传入 `--preflight-host-id`，还会附带远程链路预检摘要
 
 ### 10. 查看最近本地审计记录
 
@@ -351,6 +352,9 @@ agent-remote-bridge doctor [OPTIONS]
 --sqlite-path PATH
 --experimental-tools
 --codex-server-name NAME
+--config-path PATH
+--preflight-host-id HOST_ID
+--preflight-timeout-sec N
 
 agent-remote-bridge audit recent [OPTIONS]
 

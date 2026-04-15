@@ -322,7 +322,8 @@ def _doctor_command(args: argparse.Namespace) -> int:
     _apply_runtime_env(args)
     settings = load_settings()
     url = f"http://{args.host}:{args.port}/mcp"
-    host_store = HostStore(settings.host_config_path)
+    config_path = Path(args.config_path) if args.config_path else settings.host_config_path
+    host_store = HostStore(config_path)
     config_validation = host_store.validate_config()
 
     tcp_ok = _probe_tcp(args.host, args.port)
@@ -339,6 +340,53 @@ def _doctor_command(args: argparse.Namespace) -> int:
     if not codex_status["registered"]:
         issues.append("Codex is not registered to the current MCP URL.")
 
+    remote_preflight = None
+    selected_preflight_host_id = args.preflight_host_id
+    if not selected_preflight_host_id:
+        valid_hosts = [item["host_id"] for item in config_validation["hosts"] if item.get("ok")]
+        if len(valid_hosts) == 1:
+            selected_preflight_host_id = valid_hosts[0]
+
+    if selected_preflight_host_id:
+        stage_config = {
+            "name": "config",
+            "ok": False,
+            "detail": "",
+            "error_type": None,
+        }
+        matching_host = next(
+            (item for item in config_validation["hosts"] if item["host_id"] == selected_preflight_host_id),
+            None,
+        )
+        if matching_host and matching_host["ok"]:
+            stage_config["ok"] = True
+            stage_config["detail"] = "Host config is valid"
+            from agent_remote_bridge.adapters.ssh_adapter import SSHAdapter
+
+            audit_store = AuditStore(settings.sqlite_path)
+            audit_service = AuditService(audit_store)
+            host_service = HostService(adapter=SSHAdapter(), audit_service=audit_service)
+            host = host_store.get_host(selected_preflight_host_id)
+            remote_preflight = host_service.preflight(host, timeout_sec=args.preflight_timeout_sec)
+            remote_preflight["host_id"] = selected_preflight_host_id
+            remote_preflight["stages"] = [stage_config, *remote_preflight["stages"]]
+        else:
+            errors = matching_host["errors"] if matching_host else [f"Host '{selected_preflight_host_id}' not found"]
+            stage_config["detail"] = "; ".join(errors)
+            stage_config["error_type"] = "config_error"
+            remote_preflight = {
+                "host_id": selected_preflight_host_id,
+                "ok": False,
+                "summary": "Remote preflight failed at config",
+                "stages": [stage_config],
+            }
+
+        if remote_preflight and not remote_preflight["ok"]:
+            failed_stage = next((stage["name"] for stage in remote_preflight["stages"] if not stage["ok"]), "unknown")
+            issues.append(
+                f"Remote preflight failed for host '{selected_preflight_host_id}' at stage '{failed_stage}'."
+            )
+
     payload = {
         "ok": len(issues) == 0,
         "mode": "doctor",
@@ -347,12 +395,14 @@ def _doctor_command(args: argparse.Namespace) -> int:
             "host_count": config_validation["host_count"],
             "local_http_running": tcp_ok and http_probe["ok"],
             "codex_registered": codex_status["registered"],
+            "remote_preflight_host_id": selected_preflight_host_id,
+            "remote_preflight_ok": None if remote_preflight is None else remote_preflight["ok"],
         },
         "issues": issues,
         "config": {
-            "host_config_path": str(settings.host_config_path),
+            "host_config_path": str(config_path),
             "sqlite_path": str(settings.sqlite_path),
-            "exists": settings.host_config_path.exists(),
+            "exists": config_path.exists(),
             "errors": config_validation["errors"],
             "warnings": config_validation["warnings"],
         },
@@ -369,6 +419,7 @@ def _doctor_command(args: argparse.Namespace) -> int:
             "http_probe": http_probe,
         },
         "codex": codex_status,
+        "remote_preflight": remote_preflight,
     }
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0 if payload["ok"] else 1
@@ -643,6 +694,22 @@ def build_parser() -> argparse.ArgumentParser:
         "--codex-server-name",
         default="agentRemoteBridge",
         help="Codex MCP server name to check. Default: agentRemoteBridge",
+    )
+    doctor_parser.add_argument(
+        "--config-path",
+        default=None,
+        help="Use a specific host config file instead of the default config/hosts.yaml.",
+    )
+    doctor_parser.add_argument(
+        "--preflight-host-id",
+        default=None,
+        help="Optionally run remote preflight for a configured host_id.",
+    )
+    doctor_parser.add_argument(
+        "--preflight-timeout-sec",
+        type=int,
+        default=15,
+        help="Timeout in seconds for each remote preflight stage. Default: 15",
     )
 
     config_validate_parser = subparsers.add_parser(
