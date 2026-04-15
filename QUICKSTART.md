@@ -82,6 +82,12 @@ agent-remote-bridge doctor
 agent-remote-bridge audit recent
 ```
 
+如果你想在真正连接远端前先检查配置：
+
+```powershell
+agent-remote-bridge config-validate
+```
+
 如果你想停掉本地 HTTP MCP server：
 
 ```powershell

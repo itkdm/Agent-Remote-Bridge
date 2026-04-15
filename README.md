@@ -279,6 +279,14 @@ agent-remote-bridge audit recent
 
 这个命令支持查看最近的本地操作记录，也支持按主机、session、工具名和失败状态过滤。
 
+### 11. 校验本地主机配置
+
+```powershell
+agent-remote-bridge config-validate
+```
+
+这个命令会在真正连接远端之前检查 `config/hosts.yaml` 的结构、认证组合、路径配置和明显的占位值问题。
+
 ## 命令行参数
 
 ```text
@@ -330,6 +338,12 @@ agent-remote-bridge audit recent [OPTIONS]
 --session-id SESSION_ID
 --tool-name TOOL_NAME
 --only-failures
+
+agent-remote-bridge config-validate [OPTIONS]
+
+--config-path PATH
+--sqlite-path PATH
+--experimental-tools
 ```
 
 ## 客户端接入
