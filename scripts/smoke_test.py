@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -17,6 +18,8 @@ from agent_remote_bridge.server import create_server  # noqa: E402
 
 async def call_tool(server, name: str, arguments: dict) -> dict:
     result = await server.call_tool(name, arguments)
+    if isinstance(result, tuple) and len(result) >= 1:
+        result = result[0]
     if isinstance(result, dict):
         return result
     if isinstance(result, list) and result:
@@ -32,6 +35,7 @@ async def main() -> int:
     parser.add_argument("--connect-only", action="store_true", help="Only validate tool registration and SSH connectivity.")
     args = parser.parse_args()
 
+    os.environ["ARB_ENABLE_EXPERIMENTAL_TOOLS"] = "1"
     server = create_server()
 
     tools = await server.list_tools()

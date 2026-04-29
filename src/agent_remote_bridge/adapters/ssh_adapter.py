@@ -24,6 +24,7 @@ class SSHAdapter(RemoteAdapter):
         "connection aborted",
         "connection refused",
         "eoferror",
+        "no existing session",
     )
 
     def execute(self, host: HostConfig, remote_command: str, timeout_sec: int = 60) -> ExecutionResult:
@@ -54,6 +55,10 @@ class SSHAdapter(RemoteAdapter):
             raise RemoteExecutionError(f"Failed to invoke ssh: {exc}") from exc
 
         duration_ms = int((time.perf_counter() - started) * 1000)
+        classified = self._classify_ssh_subprocess_failure(completed.stderr, completed.returncode)
+        if classified is not None:
+            self._attach_retry_metadata(classified, retry_count=0)
+            raise classified
         return ExecutionResult(
             exit_code=completed.returncode,
             stdout=completed.stdout,
@@ -138,7 +143,7 @@ class SSHAdapter(RemoteAdapter):
 
         if "authentication failed" in lowered or "auth failed" in lowered or "permission denied" in lowered:
             return SSHAuthError(f"SSH authentication failed: {message}")
-        if "error reading ssh protocol banner" in lowered or "banner" in lowered:
+        if "error reading ssh protocol banner" in lowered or "banner" in lowered or "no existing session" in lowered:
             return SSHBannerError(f"SSH banner error: {message}")
         if (
             "connection refused" in lowered
@@ -153,6 +158,28 @@ class SSHAdapter(RemoteAdapter):
         ):
             return SSHConnectionError(f"SSH connection failed: {message}")
         return RemoteExecutionError(f"SSH password connection failed: {message}")
+
+    def _classify_ssh_subprocess_failure(self, stderr: str, returncode: int) -> RemoteExecutionError | None:
+        if returncode == 0:
+            return None
+
+        lowered = (stderr or "").lower()
+        if "permission denied" in lowered or "authentication failed" in lowered:
+            return SSHAuthError(f"SSH authentication failed: {stderr.strip() or 'unknown ssh auth failure'}")
+        if "banner" in lowered:
+            return SSHBannerError(f"SSH banner error: {stderr.strip() or 'unknown ssh banner failure'}")
+        if (
+            "connection refused" in lowered
+            or "connection reset" in lowered
+            or "connection aborted" in lowered
+            or "could not resolve hostname" in lowered
+            or "name or service not known" in lowered
+            or "network is unreachable" in lowered
+            or "no route to host" in lowered
+            or "operation timed out" in lowered
+        ):
+            return SSHConnectionError(f"SSH connection failed: {stderr.strip() or 'unknown ssh connection failure'}")
+        return None
 
     @staticmethod
     def _attach_retry_metadata(exc: Exception, *, retry_count: int) -> None:

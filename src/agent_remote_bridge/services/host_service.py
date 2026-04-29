@@ -130,7 +130,7 @@ class HostService:
                     "name": "auth",
                     "ok": auth_result["ok"],
                     "detail": auth_result["summary"],
-                    "error_type": None if auth_result["ok"] else "remote_execution_failed",
+                    "error_type": None if auth_result["ok"] else auth_result.get("error_type", "remote_execution_failed"),
                 }
             )
             return self._build_preflight_result(host, stages, auth_result=auth_result)
