@@ -34,14 +34,6 @@ STABLE_TOOL_SUMMARY = [
         "purpose": "Read a remote file, optionally using head or tail mode.",
     },
     {
-        "name": "write_remote_file",
-        "purpose": "Overwrite a remote file within allowed paths using a bounded payload.",
-    },
-    {
-        "name": "append_remote_file",
-        "purpose": "Append to a remote file within allowed paths using a bounded payload.",
-    },
-    {
         "name": "list_remote_dir",
         "purpose": "List entries in a remote directory.",
     },
@@ -79,6 +71,14 @@ EXPERIMENTAL_TOOL_SUMMARY = [
     {
         "name": "find_log_file",
         "purpose": "Search for likely log files using a keyword.",
+    },
+    {
+        "name": "write_remote_file",
+        "purpose": "Overwrite a remote file within allowed paths using a bounded payload.",
+    },
+    {
+        "name": "append_remote_file",
+        "purpose": "Append to a remote file within allowed paths using a bounded payload.",
     },
 ]
 
@@ -169,7 +169,7 @@ def create_server(
     adapter = SSHAdapter()
     security_guard = SecurityGuard()
     audit_service = AuditService(audit_store)
-    session_manager = SessionManager(session_store)
+    session_manager = SessionManager(session_store, ttl_hours=settings.session_ttl_hours)
     command_service = CommandService(
         adapter=adapter,
         session_manager=session_manager,
@@ -323,40 +323,6 @@ def create_server(
             failure_message="Remote file read failed",
         )
 
-    @server.tool(description="Overwrite a remote file within allowed paths using a bounded payload.")
-    @_wrap_tool
-    def write_remote_file(session_id: str, path: str, content: str) -> dict:
-        session = session_manager.get_session(session_id)
-        host = host_store.get_host(session.host_id)
-        result = file_service.write_file(
-            host=host,
-            session=session,
-            path=path,
-            content=content,
-        )
-        return _result_envelope(
-            data=result,
-            success_message="Remote file written successfully",
-            failure_message="Remote file write failed",
-        )
-
-    @server.tool(description="Append to a remote file within allowed paths using a bounded payload.")
-    @_wrap_tool
-    def append_remote_file(session_id: str, path: str, content: str) -> dict:
-        session = session_manager.get_session(session_id)
-        host = host_store.get_host(session.host_id)
-        result = file_service.append_file(
-            host=host,
-            session=session,
-            path=path,
-            content=content,
-        )
-        return _result_envelope(
-            data=result,
-            success_message="Remote file appended successfully",
-            failure_message="Remote file append failed",
-        )
-
     @server.tool(description="List entries in a remote directory within allowed paths.")
     @_wrap_tool
     def list_remote_dir(session_id: str, path: str) -> dict:
@@ -490,6 +456,40 @@ def create_server(
                 data=result,
                 success_message="Host connection test succeeded",
                 failure_message="Host connection test failed",
+            )
+
+        @server.tool(description="Experimental: overwrite a remote file within allowed paths using a bounded payload.")
+        @_wrap_tool
+        def write_remote_file(session_id: str, path: str, content: str) -> dict:
+            session = session_manager.get_session(session_id)
+            host = host_store.get_host(session.host_id)
+            result = file_service.write_file(
+                host=host,
+                session=session,
+                path=path,
+                content=content,
+            )
+            return _result_envelope(
+                data=result,
+                success_message="Remote file written successfully",
+                failure_message="Remote file write failed",
+            )
+
+        @server.tool(description="Experimental: append to a remote file within allowed paths using a bounded payload.")
+        @_wrap_tool
+        def append_remote_file(session_id: str, path: str, content: str) -> dict:
+            session = session_manager.get_session(session_id)
+            host = host_store.get_host(session.host_id)
+            result = file_service.append_file(
+                host=host,
+                session=session,
+                path=path,
+                content=content,
+            )
+            return _result_envelope(
+                data=result,
+                success_message="Remote file appended successfully",
+                failure_message="Remote file append failed",
             )
 
     return server

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from uuid import uuid4
+
 from agent_remote_bridge.adapters.ssh_adapter import SSHAdapter
 from agent_remote_bridge.models import HostConfig, SessionState
 from agent_remote_bridge.services.audit_service import AuditService
 from agent_remote_bridge.services.security_guard import SecurityGuard
-from agent_remote_bridge.utils.errors import SecurityError
+from agent_remote_bridge.utils.errors import PathNotAllowedError
 from agent_remote_bridge.utils.remote_path import resolve_remote_path
 from agent_remote_bridge.utils.shell_quote import quote
 from agent_remote_bridge.utils.suggested_actions import suggested_actions_for_error
@@ -354,7 +356,7 @@ class FileService:
     def _enforce_path(self, host: HostConfig, path: str) -> None:
         check = self._security_guard.check_path(host=host, path=path)
         if not check.allowed:
-            raise SecurityError(check.message or "Path is not allowed")
+            raise PathNotAllowedError(check.message or "Path is not allowed")
 
     def _write_content(
         self,
@@ -397,12 +399,29 @@ class FileService:
                 "suggested_next_actions": actions,
             }
 
-        redirection = ">>" if append else ">"
-        command = (
-            f"cat <<'__ARB_EOF__' {redirection} {quote(resolved_path)}\n"
-            f"{content}\n"
-            "__ARB_EOF__"
-        )
+        marker = self._heredoc_marker(content)
+        backup_path = f"{resolved_path}.arb.bak"
+        if append:
+            command = (
+                f"cat <<'{marker}' >> {quote(resolved_path)}\n"
+                f"{content}\n"
+                f"{marker}"
+            )
+        else:
+            target_dir = resolved_path.rsplit("/", 1)[0] or "/"
+            command = (
+                f"tmp_file=$(mktemp {quote(target_dir + '/.arb-write.XXXXXX')}) || exit 1\n"
+                "cleanup() {\n"
+                '  if [ -n "$tmp_file" ] && [ -f "$tmp_file" ]; then rm -f "$tmp_file"; fi\n'
+                "}\n"
+                "trap cleanup EXIT\n"
+                f"cat <<'{marker}' > \"$tmp_file\"\n"
+                f"{content}\n"
+                f"{marker}\n"
+                f"if [ -f {quote(resolved_path)} ]; then cp {quote(resolved_path)} {quote(backup_path)}; fi\n"
+                f"mv \"$tmp_file\" {quote(resolved_path)}\n"
+                "trap - EXIT"
+            )
         result = self._adapter.execute(host, command)
         stderr, stderr_truncated = truncate_text(result.stderr, max_chars=2000)
         ok = result.exit_code == 0
@@ -425,6 +444,7 @@ class FileService:
             "path": path,
             "resolved_path": resolved_path,
             "bytes_written": len(content.encode("utf-8")),
+            "backup_path": None if append else backup_path,
             "truncated": stderr_truncated,
             "summary": summary,
             "exit_code": result.exit_code,
@@ -432,3 +452,10 @@ class FileService:
             "error_type": None if ok else "remote_execution_failed",
             "suggested_next_actions": [] if ok else suggested_actions_for_error("remote_execution_failed"),
         }
+
+    @staticmethod
+    def _heredoc_marker(content: str) -> str:
+        while True:
+            marker = f"__ARB_WRITE_{uuid4().hex.upper()}__"
+            if marker not in content:
+                return marker

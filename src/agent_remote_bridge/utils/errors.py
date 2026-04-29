@@ -16,6 +16,10 @@ class SecurityError(BridgeError):
     error_type = "command_blocked"
 
 
+class PathNotAllowedError(SecurityError):
+    error_type = "path_not_allowed"
+
+
 class RemoteExecutionError(BridgeError):
     error_type = "remote_execution_failed"
 
@@ -34,3 +38,15 @@ class SSHBannerError(RemoteExecutionError):
 
 class SSHConnectionError(RemoteExecutionError):
     error_type = "ssh_connection_error"
+
+
+class SessionClosedError(BridgeError):
+    error_type = "session_closed"
+
+
+class SessionExpiredError(BridgeError):
+    error_type = "session_expired"
+
+
+class UnsupportedRemoteStateError(BridgeError):
+    error_type = "unsupported_remote_state"

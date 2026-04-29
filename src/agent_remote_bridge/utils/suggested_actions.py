@@ -42,6 +42,26 @@ def suggested_actions_for_error(error_type: str) -> list[str]:
             "narrow the command scope",
             "review the host security policy and allowed paths",
         ]
+    if error_type == "path_not_allowed":
+        return [
+            "choose a path under one of the configured allowed_paths roots",
+            "review the host allowlist before retrying the file or directory operation",
+        ]
+    if error_type == "session_closed":
+        return [
+            "open a new session for the target host",
+            "avoid reusing session_ids that have already been closed",
+        ]
+    if error_type == "session_expired":
+        return [
+            "open a fresh session to restore remote context",
+            "retry the action after confirming the previous session has expired",
+        ]
+    if error_type == "unsupported_remote_state":
+        return [
+            "inspect the returned command output for the remote state details",
+            "retry with a more specific diagnostic command if the state is ambiguous",
+        ]
     if error_type == "remote_execution_failed":
         return [
             "inspect stderr or the command summary",

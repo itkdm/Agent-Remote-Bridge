@@ -33,14 +33,29 @@ class SystemService:
                 lowered = text.lower()
                 if "active (running)" in lowered or "is running" in lowered:
                     status = "running"
+                    ok = True
+                    error_type = None
+                    suggested_next_actions: list[str] = []
                 elif "inactive" in lowered:
                     status = "inactive"
+                    ok = True
+                    error_type = None
+                    suggested_next_actions = ["inspect recent service logs", "review the service configuration or startup conditions"]
                 elif "failed" in lowered:
                     status = "failed"
+                    ok = True
+                    error_type = None
+                    suggested_next_actions = ["inspect recent service logs", "check the last restart failure details"]
                 elif "not-found" in lowered or "could not be found" in lowered:
                     status = "not_found"
+                    ok = True
+                    error_type = None
+                    suggested_next_actions = ["check the service name", "confirm the service is installed on the remote host"]
                 else:
                     status = "unknown"
+                    ok = result.exit_code == 0
+                    error_type = None if ok else "unsupported_remote_state"
+                    suggested_next_actions = [] if ok else suggested_actions_for_error("unsupported_remote_state")
                 summary = f"Service {service_name} status via {backend}: {status}"
                 self._audit_service.record(
                     host_id=host.host_id,
@@ -49,9 +64,10 @@ class SystemService:
                     command=command,
                     exit_code=result.exit_code,
                     summary=summary,
-                    error_type=None if result.exit_code == 0 else "remote_execution_failed",
+                    error_type=error_type,
                 )
                 return {
+                    "ok": ok,
                     "service_name": service_name,
                     "backend": backend,
                     "status": status,
@@ -60,8 +76,8 @@ class SystemService:
                     "summary": summary,
                     "exit_code": result.exit_code,
                     "truncated": stdout_truncated or stderr_truncated,
-                    "error_type": None if result.exit_code == 0 else "remote_execution_failed",
-                    "suggested_next_actions": [] if result.exit_code == 0 else suggested_actions_for_error("remote_execution_failed"),
+                    "error_type": error_type,
+                    "suggested_next_actions": suggested_next_actions,
                 }
             if stderr.strip():
                 errors.append(f"{backend}: {stderr.strip().splitlines()[0][:160]}")
@@ -79,6 +95,7 @@ class SystemService:
             error_type="remote_execution_failed",
         )
         return {
+            "ok": False,
             "service_name": service_name,
             "backend": None,
             "status": "unknown",

@@ -1,18 +1,20 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from agent_remote_bridge.models import HostConfig, SessionState
 from agent_remote_bridge.stores.session_store import SessionStore
+from agent_remote_bridge.utils.errors import SessionClosedError, SessionExpiredError
 
 
 class SessionManager:
-    def __init__(self, store: SessionStore) -> None:
+    def __init__(self, store: SessionStore, ttl_hours: int = 24) -> None:
         self._store = store
+        self._ttl_hours = ttl_hours
 
     def open_session(self, host: HostConfig, notes: str | None = None) -> SessionState:
-        now = datetime.now().astimezone()
+        now = datetime.now(timezone.utc)
         session = SessionState(
             session_id=f"sess_{uuid4().hex[:12]}",
             host_id=host.host_id,
@@ -20,17 +22,24 @@ class SessionManager:
             notes=notes,
             created_at=now,
             updated_at=now,
+            expires_at=now + timedelta(hours=self._ttl_hours),
         )
         self._store.save(session)
         return session
 
     def get_session(self, session_id: str) -> SessionState:
-        return self._store.get(session_id)
+        session = self._store.get(session_id)
+        if session.status == "closed":
+            raise SessionClosedError(f"Session '{session_id}' is closed and can no longer be used")
+        expires_at = session.expires_at or (session.updated_at + timedelta(hours=self._ttl_hours))
+        if expires_at <= datetime.now(timezone.utc):
+            raise SessionExpiredError(f"Session '{session_id}' has expired and must be reopened")
+        return session
 
     def close_session(self, session_id: str) -> SessionState:
         session = self._store.get(session_id)
         session.status = "closed"
-        session.updated_at = datetime.now().astimezone()
+        session.updated_at = datetime.now(timezone.utc)
         self._store.save(session)
         return session
 
@@ -53,6 +62,8 @@ class SessionManager:
             session.recent_failures = (session.recent_failures + [failure_summary])[-10:]
         if detected_os:
             session.detected_os = detected_os
-        session.updated_at = datetime.now().astimezone()
+        now = datetime.now(timezone.utc)
+        session.updated_at = now
+        session.expires_at = now + timedelta(hours=self._ttl_hours)
         self._store.save(session)
         return session

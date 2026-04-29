@@ -13,6 +13,7 @@ class AppSettings:
     host_config_path: Path
     sqlite_path: Path
     enable_experimental_tools: bool
+    session_ttl_hours: int
 
 
 def load_settings() -> AppSettings:
@@ -30,6 +31,7 @@ def load_settings() -> AppSettings:
         "yes",
         "on",
     }
+    session_ttl_hours = int(os.environ.get("ARB_SESSION_TTL_HOURS", "24"))
     return AppSettings(
         project_root=project_root,
         config_dir=config_dir,
@@ -37,4 +39,5 @@ def load_settings() -> AppSettings:
         host_config_path=config_dir / "hosts.yaml",
         sqlite_path=sqlite_path,
         enable_experimental_tools=enable_experimental_tools,
+        session_ttl_hours=session_ttl_hours,
     )

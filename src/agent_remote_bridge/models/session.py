@@ -18,3 +18,4 @@ class SessionState(BaseModel):
     notes: str | None = None
     created_at: datetime
     updated_at: datetime
+    expires_at: datetime | None = None

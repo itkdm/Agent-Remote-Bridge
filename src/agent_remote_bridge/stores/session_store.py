@@ -30,13 +30,17 @@ class SessionStore:
                     detected_os TEXT,
                     privilege_level TEXT NOT NULL,
                     recent_commands_json TEXT NOT NULL,
-                    recent_failures_json TEXT NOT NULL,
-                    notes TEXT,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
+                recent_failures_json TEXT NOT NULL,
+                notes TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                expires_at TEXT
                 )
                 """
             )
+            columns = {row[1] for row in conn.execute("PRAGMA table_info(sessions)").fetchall()}
+            if "expires_at" not in columns:
+                conn.execute("ALTER TABLE sessions ADD COLUMN expires_at TEXT")
 
     def save(self, session: SessionState) -> None:
         with self._connect() as conn:
@@ -46,7 +50,8 @@ class SessionStore:
                     session_id, host_id, status, current_cwd, env_delta_json,
                     detected_os, privilege_level, recent_commands_json,
                     recent_failures_json, notes, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    , expires_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     session.session_id,
@@ -61,6 +66,7 @@ class SessionStore:
                     session.notes,
                     session.created_at.isoformat(),
                     session.updated_at.isoformat(),
+                    session.expires_at.isoformat() if session.expires_at else None,
                 ),
             )
 
@@ -104,4 +110,5 @@ class SessionStore:
             notes=row[9],
             created_at=datetime.fromisoformat(row[10]),
             updated_at=datetime.fromisoformat(row[11]),
+            expires_at=datetime.fromisoformat(row[12]) if len(row) > 12 and row[12] else None,
         )

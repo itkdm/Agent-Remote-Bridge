@@ -80,7 +80,9 @@ def test_write_file_overwrites_allowed_path_and_records_audit(tmp_path: Path) ->
 
     assert result["ok"] is True
     assert result["mode"] == "write"
-    assert "cat <<'__ARB_EOF__' > /srv/app/.env" in adapter.commands[0]
+    assert "mktemp" in adapter.commands[0]
+    assert "mv " in adapter.commands[0]
+    assert "__ARB_EOF__" not in adapter.commands[0]
     record = audit_service.list_recent(limit=1)[0]
     assert record["tool_name"] == "write_remote_file"
 
@@ -98,7 +100,24 @@ def test_append_file_uses_append_redirection(tmp_path: Path) -> None:
 
     assert result["ok"] is True
     assert result["mode"] == "append"
-    assert "cat <<'__ARB_EOF__' >> /srv/app/.env" in adapter.commands[0]
+    assert ">> /srv/app/.env" in adapter.commands[0]
+    assert "__ARB_EOF__" not in adapter.commands[0]
+
+
+def test_write_file_supports_content_containing_previous_delimiter_token(tmp_path: Path) -> None:
+    adapter = _FakeAdapter()
+    service, _ = _service(tmp_path, adapter)
+
+    result = service.write_file(
+        host=_host(),
+        session=_session(),
+        path="/srv/app/.env",
+        content="FIRST=1\n__ARB_EOF__\nSECOND=2\n",
+    )
+
+    assert result["ok"] is True
+    assert "__ARB_WRITE_" in adapter.commands[0]
+    assert "cat <<'__ARB_EOF__'" not in adapter.commands[0]
 
 
 def test_write_file_rejects_paths_outside_allowed_roots(tmp_path: Path) -> None:

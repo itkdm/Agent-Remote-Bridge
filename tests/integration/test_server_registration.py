@@ -18,8 +18,6 @@ def test_create_server_registers_stable_tools() -> None:
         "close_session",
         "exec_remote",
         "read_remote_file",
-        "write_remote_file",
-        "append_remote_file",
         "list_remote_dir",
         "get_system_facts",
         "tail_system_log",
@@ -31,6 +29,8 @@ def test_create_server_registers_stable_tools() -> None:
         "check_port_listening",
         "inspect_processes",
         "find_log_file",
+        "write_remote_file",
+        "append_remote_file",
     }.isdisjoint(tool_names)
 
 
@@ -47,4 +47,6 @@ def test_create_server_registers_experimental_tools_only_when_enabled(monkeypatc
         "check_port_listening",
         "inspect_processes",
         "find_log_file",
+        "write_remote_file",
+        "append_remote_file",
     }.issubset(tool_names)

@@ -42,6 +42,7 @@ class NetworkService:
                     summary=summary,
                 )
                 return {
+                    "ok": True,
                     "port": port,
                     "is_listening": True,
                     "backend": backend,
@@ -62,19 +63,20 @@ class NetworkService:
             session_id=session.session_id,
             tool_name="check_port_listening",
             command=str(port),
-            exit_code=1,
+            exit_code=0,
             summary=summary,
-            error_type="remote_execution_failed",
+            error_type=None,
         )
         return {
+            "ok": True,
             "port": port,
             "is_listening": False,
             "backend": None,
             "content": "",
             "stderr": "\n".join(errors),
             "summary": summary,
-            "exit_code": 1,
+            "exit_code": 0,
             "truncated": False,
-            "error_type": "remote_execution_failed",
-            "suggested_next_actions": suggested_actions_for_error("remote_execution_failed"),
+            "error_type": None,
+            "suggested_next_actions": ["check whether the service is expected to be running", "verify the configured port number"],
         }
