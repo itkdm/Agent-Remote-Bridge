@@ -220,7 +220,6 @@ See [SECURITY.md](./SECURITY.md) for disclosure guidance.
 - [CONTRIBUTING.md](./CONTRIBUTING.md): development workflow and contribution rules
 - [SUPPORT.md](./SUPPORT.md): support expectations and issue guidance
 - [RELEASE.md](./RELEASE.md): release checklist and tagging flow
-- [docs/ROADMAP.md](./docs/ROADMAP.md): public roadmap
 
 ## Roadmap / 路线图
 
@@ -237,10 +236,6 @@ Current priorities:
 2. 维持 Windows、macOS、Linux 三端 CI 绿色
 3. 提供可安装的发布产物
 4. 保持文档、诊断命令和 release gate 一致
-
-More detail lives in [docs/ROADMAP.md](./docs/ROADMAP.md).
-
-更多细节见 [docs/ROADMAP.md](./docs/ROADMAP.md)。
 
 ## License
 
