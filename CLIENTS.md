@@ -42,6 +42,21 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup_codex_mcp.ps1
 - 启动本地 `streamable-http` MCP server
 - 把 `http://127.0.0.1:8000/mcp` 注册到 Codex
 
+默认只暴露稳定工具集：
+
+- `list_hosts`
+- `open_session`
+- `get_session_state`
+- `close_session`
+- `exec_remote`
+- `read_remote_file`
+- `list_remote_dir`
+- `get_system_facts`
+- `tail_system_log`
+- `check_service_status`
+
+如果你确实需要实验工具，请显式用 `--experimental-tools` 或环境变量开启，不要把它们当成默认契约依赖。
+
 运行后重启 Codex Desktop 即可。
 
 如果你想确认本地 HTTP MCP server 当前是否正常，也可以执行：

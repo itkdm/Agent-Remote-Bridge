@@ -85,6 +85,8 @@ Remote Linux Server
 - `inspect_processes`
 - `find_log_file`
 
+这些工具用于排障增强和开发期验证，不承诺长期接口稳定性。默认推荐优先使用稳定工具集；只有在它们明显减少试探成本时，再显式开启实验模式。
+
 开启方式：
 
 ```powershell
@@ -303,14 +305,30 @@ agent-remote-bridge audit recent
 这个命令支持查看最近的本地操作记录，也支持按主机、session、工具名和失败状态过滤。
 对于 `exec_remote`，审计记录会保留执行耗时、是否触发 SSH 重试、stderr 首条摘要，以及当前可操作的下一步建议。
 
-### 11. 校验本地主机配置
+### 11. 查看最近本地 session
+
+```powershell
+agent-remote-bridge session recent
+```
+
+这个命令用于查看最近的逻辑会话状态，便于排查上下文残留或确认最近使用情况。
+
+### 12. 清理过期 closed session
+
+```powershell
+agent-remote-bridge session cleanup --max-age-hours 24
+```
+
+这个命令会删除早于指定时间阈值的 closed session，避免本地 SQLite 中长期堆积无用上下文。
+
+### 13. 校验本地主机配置
 
 ```powershell
 agent-remote-bridge config-validate
 ```
 
 这个命令会在真正连接远端之前检查 `config/hosts.yaml` 的结构、认证组合、路径配置和明显的占位值问题。
-### 12. 运行远程连接预检
+### 14. 运行远程连接预检
 
 ```powershell
 agent-remote-bridge preflight --host-id demo-server
@@ -378,6 +396,16 @@ agent-remote-bridge audit recent [OPTIONS]
 --session-id SESSION_ID
 --tool-name TOOL_NAME
 --only-failures
+
+agent-remote-bridge session recent [OPTIONS]
+
+--limit N
+--sqlite-path PATH
+
+agent-remote-bridge session cleanup [OPTIONS]
+
+--max-age-hours N
+--sqlite-path PATH
 
 agent-remote-bridge config-validate [OPTIONS]
 
@@ -457,7 +485,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup_codex_mcp.ps1
 
 - 本地 MCP server 可运行
 - VS Code 可接入
-- 可真实连接远程服务器
+- 远程链路可通过 `preflight` 做结构化诊断
 - 可执行 `pwd`、`ls`、`cat`
 - 可读取系统事实信息
 - 可查看系统日志
@@ -475,6 +503,11 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup_codex_mcp.ps1
 python .\scripts\smoke_test.py --host-id demo-server --connect-only
 python .\scripts\smoke_test.py --host-id demo-server
 ```
+
+说明：
+
+- `--connect-only` 需要实验工具 `test_host_connection`，脚本会自动启用实验模式
+- 如果远程 SSH banner 或认证本身存在问题，脚本会按统一错误类型直接返回诊断结果
 
 ## License
 

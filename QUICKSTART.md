@@ -88,6 +88,18 @@ agent-remote-bridge doctor
 agent-remote-bridge audit recent
 ```
 
+如果你想查看最近的本地 session：
+
+```powershell
+agent-remote-bridge session recent
+```
+
+如果你想清理已关闭且过期的 session：
+
+```powershell
+agent-remote-bridge session cleanup --max-age-hours 24
+```
+
 如果你想在真正连接远端前先检查配置：
 
 ```powershell
@@ -131,6 +143,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup_codex_mcp.ps1
 1. `list_hosts`
 2. `open_session(host_id="demo-server")`
 3. `exec_remote(command="pwd")`
+
+默认推荐先围绕稳定工具集工作；只有在需要更强排障辅助时，再显式开启实验工具。
 
 ## 6. 如果想快速验证
 
