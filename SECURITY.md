@@ -9,7 +9,7 @@ Agent Remote Bridge 是一个受控远程执行桥，不是沙箱、权限边界
 ## Supported Versions / 支持版本
 
 - `0.2.x`: security fixes and contract clarifications
-- Older `0.x` builds: best effort only
+- Older `0.x` builds: no guaranteed security maintenance
 
 ## Reporting / 报告方式
 
@@ -17,7 +17,7 @@ Please do **not** post exploit details in public issues.
 
 请不要在公开 issue 中直接披露利用细节。
 
-Open a private security report through GitHub Security Advisories if the repository is configured for it. If not, open a minimal issue asking for a private contact channel and reference this file.
+Open a private security report through GitHub Security Advisories if the repository has it enabled. If that path is unavailable, open a minimal public issue requesting a private contact channel and reference this file without including exploit details.
 
 ## Response Goals / 响应目标
 

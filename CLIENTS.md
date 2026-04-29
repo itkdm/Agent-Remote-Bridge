@@ -1,8 +1,8 @@
 # Client Integration / 客户端接入
 
-This document shows how to connect Agent Remote Bridge from common MCP clients.
+This document shows how to connect Agent Remote Bridge from common MCP clients without depending on internal project context.
 
-本文档说明如何把 Agent Remote Bridge 接入常见 MCP 客户端。
+本文档说明如何把 Agent Remote Bridge 接入常见 MCP 客户端，并尽量避免依赖仓库内部上下文。
 
 ## Shared Rules / 共通规则
 
@@ -43,7 +43,7 @@ The repository already includes a starting point:
 
 ## Codex Desktop
 
-Fastest local HTTP flow:
+Recommended local HTTP flow:
 
 ```powershell
 agent-remote-bridge start

@@ -1,8 +1,8 @@
 # 5-Minute Quickstart / 5 分钟上手
 
-This guide is the shortest path to opening one remote session and running `pwd`.
+This guide focuses on the smallest useful success path: open one remote session and run `pwd`.
 
-这份指南只保留最短路径：打开一个远程 session，并执行一次 `pwd`。
+这份指南只保留最小可用路径：打开一个远程 session，并执行一次 `pwd`。
 
 ## 1. Install / 安装
 
@@ -18,9 +18,9 @@ python -m venv .venv
 Copy-Item .\config\hosts.example.yaml .\config\hosts.yaml
 ```
 
-Edit [`config/hosts.yaml`](./config/hosts.yaml) to match your server.
+Edit your local `config/hosts.yaml` to match your server.
 
-Then edit your new local `config/hosts.yaml` using [`config/hosts.example.yaml`](./config/hosts.example.yaml) as the tracked example.
+Use [`config/hosts.example.yaml`](./config/hosts.example.yaml) as the tracked example when editing your new local `config/hosts.yaml`.
 
 然后以仓库内的 [`config/hosts.example.yaml`](./config/hosts.example.yaml) 为参考，修改你本地新生成的 `config/hosts.yaml`。
 
@@ -108,9 +108,9 @@ If you use VS Code, start from [CLIENTS.md](./CLIENTS.md) or the provided `.vsco
 2. `open_session(host_id="demo-server")`
 3. `exec_remote(command="pwd")`
 
-At this point you have the basic loop working.
+At this point, the basic loop is working.
 
-到这里，最小闭环就已经跑通了。
+到这里，最小闭环就已经跑通。
 
 ## 7. Optional local diagnostics / 可选本地诊断
 

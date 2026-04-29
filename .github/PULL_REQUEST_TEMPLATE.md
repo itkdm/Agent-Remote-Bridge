@@ -8,6 +8,7 @@
 - [ ] `python -m pytest`
 - [ ] `python scripts/check_docs.py`
 - [ ] `python -m build`
+- [ ] `python -m twine check dist/*`
 - [ ] Updated docs, changelog, or release notes if needed
 
 ## Checklist

@@ -17,4 +17,4 @@ Project maintainers may remove comments, lock threads, or reject participation t
 
 ## Reporting
 
-Report conduct issues privately using the contact path described in [SECURITY.md](./SECURITY.md) or by opening a maintainer contact request in [SUPPORT.md](./SUPPORT.md).
+If you need to report a conduct issue, use the support path described in [SUPPORT.md](./SUPPORT.md) and request a private maintainer contact channel.

@@ -35,4 +35,4 @@ git tag v0.2.0
 git push origin main --follow-tags
 ```
 
-The release workflow will build artifacts, attach them to the GitHub release, and publish to PyPI if repository permissions are configured.
+The release workflow builds artifacts, attaches them to the GitHub release, and publishes to PyPI when repository permissions are configured correctly.

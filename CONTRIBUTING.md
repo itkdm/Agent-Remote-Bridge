@@ -23,7 +23,7 @@ python -m venv .venv
 
 ## Validation / 验证
 
-Run these before opening a PR:
+Run these checks before opening a PR:
 
 ```powershell
 python -m pytest
