@@ -35,6 +35,7 @@ class AuditStore:
                     stderr_preview TEXT,
                     summary TEXT NOT NULL,
                     error_type TEXT,
+                    failure_stage TEXT,
                     suggested_next_actions TEXT NOT NULL DEFAULT '[]'
                 )
                 """
@@ -43,6 +44,7 @@ class AuditStore:
             self._ensure_column(conn, "retry_count", "INTEGER NOT NULL DEFAULT 0")
             self._ensure_column(conn, "retried", "INTEGER NOT NULL DEFAULT 0")
             self._ensure_column(conn, "stderr_preview", "TEXT")
+            self._ensure_column(conn, "failure_stage", "TEXT")
             self._ensure_column(conn, "suggested_next_actions", "TEXT NOT NULL DEFAULT '[]'")
 
     @staticmethod
@@ -58,8 +60,8 @@ class AuditStore:
                 INSERT INTO audit_records (
                     audit_id, timestamp, host_id, session_id, tool_name, command,
                     risk_level, blocked, exit_code, duration_ms, retry_count, retried,
-                    stderr_preview, summary, error_type, suggested_next_actions
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    stderr_preview, summary, error_type, failure_stage, suggested_next_actions
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     record.audit_id,
@@ -77,6 +79,7 @@ class AuditStore:
                     record.stderr_preview,
                     record.summary,
                     record.error_type,
+                    record.failure_stage,
                     json.dumps(record.suggested_next_actions, ensure_ascii=False),
                 ),
             )
@@ -107,6 +110,7 @@ class AuditStore:
                 stderr_preview,
                 summary,
                 error_type,
+                failure_stage,
                 suggested_next_actions
             FROM audit_records
             WHERE 1 = 1
@@ -148,7 +152,8 @@ class AuditStore:
                     stderr_preview=row[12],
                     summary=row[13],
                     error_type=row[14],
-                    suggested_next_actions=json.loads(row[15] or "[]"),
+                    failure_stage=row[15],
+                    suggested_next_actions=json.loads(row[16] or "[]"),
                 )
             )
         return records

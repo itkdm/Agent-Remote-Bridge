@@ -21,4 +21,5 @@ class AuditRecord(BaseModel):
     stderr_preview: str | None = None
     summary: str
     error_type: str | None = None
+    failure_stage: str | None = None
     suggested_next_actions: list[str] = Field(default_factory=list)

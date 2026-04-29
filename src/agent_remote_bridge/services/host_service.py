@@ -162,6 +162,7 @@ class HostService:
             exit_code=0 if ok else 1,
             summary=summary,
             error_type=None if ok else failed_stage["error_type"],
+            failure_stage=None if ok else failed_stage["name"],
         )
         return {
             "host_id": host.host_id,

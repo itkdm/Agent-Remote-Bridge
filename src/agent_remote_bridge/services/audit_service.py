@@ -27,6 +27,7 @@ class AuditService:
         retried: bool = False,
         stderr_preview: str | None = None,
         error_type: str | None = None,
+        failure_stage: str | None = None,
         suggested_next_actions: list[str] | None = None,
     ) -> None:
         self._store.write(
@@ -46,6 +47,7 @@ class AuditService:
                 stderr_preview=stderr_preview,
                 summary=summary,
                 error_type=error_type,
+                failure_stage=failure_stage,
                 suggested_next_actions=suggested_next_actions or [],
             )
         )
