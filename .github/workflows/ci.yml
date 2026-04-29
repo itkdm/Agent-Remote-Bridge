@@ -7,9 +7,34 @@ on:
   pull_request:
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.11", "3.12"]
+    runs-on: ${{ matrix.os }}
 
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run unit and integration tests
+        run: |
+          python -m pytest
+
+  contract-smoke:
+    runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -24,13 +49,50 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
 
-      - name: Run unit and integration tests
-        run: |
-          python -m pytest
-
       - name: Run local smoke check
         env:
           PYTHONPATH: src
         run: |
-          python -c "import asyncio; from agent_remote_bridge.server import create_server; tools = asyncio.run(create_server().list_tools()); names = {tool.name for tool in tools}; expected = {'list_hosts', 'open_session', 'get_session_state', 'close_session', 'exec_remote', 'read_remote_file', 'list_remote_dir', 'get_system_facts', 'tail_system_log', 'check_service_status'}; missing = expected - names; assert not missing, f'Missing tools: {sorted(missing)}'"
+          python -c "import asyncio; from agent_remote_bridge.server import create_server; tools = asyncio.run(create_server().list_tools()); names = {tool.name for tool in tools}; expected = {'list_hosts', 'open_session', 'get_session_state', 'close_session', 'exec_remote', 'read_remote_file', 'list_remote_dir', 'get_system_facts', 'tail_system_log', 'check_service_status'}; unexpected = names & {'write_remote_file', 'append_remote_file', 'test_host_connection', 'tail_remote_logs', 'check_port_listening', 'inspect_processes', 'find_log_file'}; missing = expected - names; assert not missing, f'Missing stable tools: {sorted(missing)}'; assert not unexpected, f'Experimental tools unexpectedly enabled: {sorted(unexpected)}'"
           python -m agent_remote_bridge.main --help
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate documentation links
+        run: |
+          python scripts/check_docs.py
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build and validate package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+          python -m build
+          python -m twine check dist/*
+
+      - name: Verify wheel install
+        run: |
+          python -m venv .pkgtest
+          . .pkgtest/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install dist/*.whl
+          agent-remote-bridge --help

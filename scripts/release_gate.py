@@ -25,9 +25,9 @@ def build_check_commands(host_id: str | None = None) -> list[dict[str, str]]:
                 "tools = asyncio.run(server.list_tools())\n"
                 "names = {tool.name for tool in tools}\n"
                 "expected = {'list_hosts', 'open_session', 'get_session_state', 'close_session', 'exec_remote', "
-                "'read_remote_file', 'write_remote_file', 'append_remote_file', 'list_remote_dir', 'get_system_facts', "
-                "'tail_system_log', 'check_service_status'}\n"
-                "unexpected = names & {'test_host_connection', 'tail_remote_logs', 'check_port_listening', 'inspect_processes', 'find_log_file'}\n"
+                "'read_remote_file', 'list_remote_dir', 'get_system_facts', 'tail_system_log', 'check_service_status'}\n"
+                "unexpected = names & {'test_host_connection', 'tail_remote_logs', 'check_port_listening', 'inspect_processes', 'find_log_file', "
+                "'write_remote_file', 'append_remote_file'}\n"
                 "missing = expected - names\n"
                 "assert not missing, f'Missing stable tools: {sorted(missing)}'\n"
                 "assert not unexpected, f'Experimental tools unexpectedly enabled: {sorted(unexpected)}'\n"
@@ -42,6 +42,18 @@ def build_check_commands(host_id: str | None = None) -> list[dict[str, str]]:
         {
             "name": "config_validate",
             "command": f'"{sys.executable}" -m agent_remote_bridge.main config-validate',
+        },
+        {
+            "name": "docs_check",
+            "command": f'"{sys.executable}" .\\scripts\\check_docs.py',
+        },
+        {
+            "name": "build",
+            "command": f'"{sys.executable}" -m build',
+        },
+        {
+            "name": "twine_check",
+            "command": f'"{sys.executable}" -m twine check dist/*',
         },
     ]
     if host_id:

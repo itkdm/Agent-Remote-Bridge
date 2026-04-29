@@ -35,3 +35,16 @@ def test_build_check_commands_adds_remote_checks_when_host_is_given() -> None:
 
     assert "preflight" in names
     assert "smoke_connect_only" in names
+
+
+def test_build_check_commands_uses_new_stable_tool_contract() -> None:
+    module = _load_release_gate_module()
+
+    stable_smoke = next(check for check in module.build_check_commands() if check["name"] == "stable_tool_smoke")
+    command = stable_smoke["command"]
+
+    expected_section = command.split("expected = ", 1)[1].split("\n", 1)[0]
+    assert "write_remote_file" not in expected_section
+    assert "append_remote_file" not in expected_section
+    assert "tail_system_log" in command
+    assert "check_service_status" in command
