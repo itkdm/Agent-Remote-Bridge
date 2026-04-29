@@ -52,3 +52,44 @@ def test_session_store_lists_most_recent_first(tmp_path: Path) -> None:
     sessions = store.list_recent()
 
     assert [session.session_id for session in sessions[:2]] == ["sess_newer", "sess_older"]
+
+
+def test_session_store_cleanup_removes_only_old_closed_sessions(tmp_path: Path) -> None:
+    store = SessionStore(tmp_path / "state.db")
+    now = datetime.now(timezone.utc)
+    old_closed = SessionState(
+        session_id="sess_old_closed",
+        host_id="demo",
+        status="closed",
+        current_cwd="/tmp",
+        created_at=now - timedelta(days=2),
+        updated_at=now - timedelta(days=2),
+    )
+    fresh_closed = SessionState(
+        session_id="sess_fresh_closed",
+        host_id="demo",
+        status="closed",
+        current_cwd="/tmp",
+        created_at=now,
+        updated_at=now,
+    )
+    open_session = SessionState(
+        session_id="sess_open",
+        host_id="demo",
+        status="open",
+        current_cwd="/tmp",
+        created_at=now - timedelta(days=2),
+        updated_at=now - timedelta(days=2),
+    )
+
+    store.save(old_closed)
+    store.save(fresh_closed)
+    store.save(open_session)
+
+    deleted = store.cleanup_closed_before(now - timedelta(days=1))
+    remaining = [session.session_id for session in store.list_recent(limit=10)]
+
+    assert deleted == 1
+    assert "sess_old_closed" not in remaining
+    assert "sess_fresh_closed" in remaining
+    assert "sess_open" in remaining

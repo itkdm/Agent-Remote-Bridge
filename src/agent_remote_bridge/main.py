@@ -9,6 +9,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,7 @@ from agent_remote_bridge.services.host_service import HostService
 from agent_remote_bridge.settings import load_settings
 from agent_remote_bridge.stores.audit_store import AuditStore
 from agent_remote_bridge.stores.host_store import HostStore
+from agent_remote_bridge.stores.session_store import SessionStore
 from agent_remote_bridge.utils.suggested_actions import suggested_actions_for_error
 
 
@@ -579,6 +581,39 @@ def _audit_recent_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def _session_recent_command(args: argparse.Namespace) -> int:
+    _apply_runtime_env(args)
+    settings = load_settings()
+    session_store = SessionStore(settings.sqlite_path)
+    sessions = session_store.list_recent(limit=args.limit)
+    payload = _cli_payload(
+        ok=True,
+        mode="session_recent",
+        limit=args.limit,
+        count=len(sessions),
+        records=[session.model_dump(mode="json") for session in sessions],
+    )
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+def _session_cleanup_command(args: argparse.Namespace) -> int:
+    _apply_runtime_env(args)
+    settings = load_settings()
+    session_store = SessionStore(settings.sqlite_path)
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=args.max_age_hours)
+    deleted_count = session_store.cleanup_closed_before(cutoff)
+    payload = _cli_payload(
+        ok=True,
+        mode="session_cleanup",
+        max_age_hours=args.max_age_hours,
+        deleted_count=deleted_count,
+        cutoff=cutoff.isoformat(),
+    )
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
 def _serve_command(args: argparse.Namespace) -> int:
     _apply_runtime_env(args)
     server = create_server(
@@ -850,6 +885,46 @@ def build_parser() -> argparse.ArgumentParser:
         "--only-failures",
         action="store_true",
         help="Only include blocked or failed audit records.",
+    )
+
+    session_parser = subparsers.add_parser(
+        "session",
+        help="Inspect or clean up local session records.",
+    )
+    session_subparsers = session_parser.add_subparsers(dest="session_command")
+
+    session_recent_parser = session_subparsers.add_parser(
+        "recent",
+        help="Show recent local session records.",
+    )
+    session_recent_parser.set_defaults(func=_session_recent_command)
+    session_recent_parser.add_argument(
+        "--limit",
+        type=int,
+        default=20,
+        help="Maximum number of sessions to return. Default: 20",
+    )
+    session_recent_parser.add_argument(
+        "--sqlite-path",
+        default=None,
+        help="Override SQLite state path during session inspection.",
+    )
+
+    session_cleanup_parser = session_subparsers.add_parser(
+        "cleanup",
+        help="Delete closed sessions older than the given age threshold.",
+    )
+    session_cleanup_parser.set_defaults(func=_session_cleanup_command)
+    session_cleanup_parser.add_argument(
+        "--max-age-hours",
+        type=int,
+        default=24,
+        help="Delete closed sessions older than this many hours. Default: 24",
+    )
+    session_cleanup_parser.add_argument(
+        "--sqlite-path",
+        default=None,
+        help="Override SQLite state path during session cleanup.",
     )
 
     parser.set_defaults(func=_serve_command)

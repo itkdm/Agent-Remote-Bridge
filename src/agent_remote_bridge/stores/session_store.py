@@ -82,6 +82,14 @@ class SessionStore:
             ).fetchall()
         return [self._row_to_model(row) for row in rows]
 
+    def cleanup_closed_before(self, cutoff: datetime) -> int:
+        with self._connect() as conn:
+            cursor = conn.execute(
+                "DELETE FROM sessions WHERE status = ? AND updated_at < ?",
+                ("closed", cutoff.isoformat()),
+            )
+            return int(cursor.rowcount or 0)
+
     def _row_to_model(self, row: tuple) -> SessionState:
         return SessionState(
             session_id=row[0],
