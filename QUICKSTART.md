@@ -1,8 +1,10 @@
-# 5 分钟上手
+# 5-Minute Quickstart / 5 分钟上手
 
-这份文档只讲最短路径：让你的 MCP 客户端连上本地 Agent Remote Bridge，然后在远程服务器上执行一次 `pwd`。
+This guide is the shortest path to opening one remote session and running `pwd`.
 
-## 1. 安装
+这份指南只保留最短路径：打开一个远程 session，并执行一次 `pwd`。
+
+## 1. Install / 安装
 
 ```powershell
 python -m venv .venv
@@ -10,17 +12,19 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e .
 ```
 
-## 2. 配置远程主机
-
-复制示例配置：
+## 2. Create a host config / 创建主机配置
 
 ```powershell
 Copy-Item .\config\hosts.example.yaml .\config\hosts.yaml
 ```
 
-把 [config/hosts.yaml](./config/hosts.yaml) 改成你自己的服务器信息。
+Edit [`config/hosts.yaml`](./config/hosts.yaml) to match your server.
 
-最小示例：
+Then edit your new local `config/hosts.yaml` using [`config/hosts.example.yaml`](./config/hosts.example.yaml) as the tracked example.
+
+然后以仓库内的 [`config/hosts.example.yaml`](./config/hosts.example.yaml) 为参考，修改你本地新生成的 `config/hosts.yaml`。
+
+Minimal example:
 
 ```yaml
 hosts:
@@ -40,120 +44,102 @@ hosts:
     allow_sudo: true
 ```
 
-然后在本地设置环境变量：
+Set the password locally:
 
 ```powershell
 $env:ARB_DEMO_SERVER_PASSWORD="YOUR_PASSWORD"
 ```
 
-## 3. 启动 MCP Server
+## 3. Validate before connecting / 正式连接前先校验
 
 ```powershell
-agent-remote-bridge --transport stdio
+agent-remote-bridge config-validate
+agent-remote-bridge preflight --host-id demo-server
 ```
 
-Windows 下也可以：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run_server.ps1 --transport stdio
-```
-
-如果你已经用 HTTP 方式启动，也可以随时检查本地服务状态：
-
-```powershell
-agent-remote-bridge status
-```
-
-如果你想直接在后台启动本地 HTTP MCP server：
-
-```powershell
-agent-remote-bridge start
-```
-
-如果你想把本地 MCP 地址注册到 Codex：
-
-```powershell
-agent-remote-bridge codex-register
-```
-
-如果你想一次性检查本地环境：
+Use `doctor` if you also want to check local HTTP MCP status and Codex registration:
 
 ```powershell
 agent-remote-bridge doctor
 ```
 
-如果你想查看最近的本地操作记录：
+如果你还想同时检查本地 HTTP MCP 服务状态和 Codex 注册情况，可以再运行：
 
 ```powershell
-agent-remote-bridge audit recent
+agent-remote-bridge doctor
 ```
 
-如果你想查看最近的本地 session：
+## 4. Start the MCP server / 启动 MCP Server
+
+Recommended local `stdio` mode:
 
 ```powershell
-agent-remote-bridge session recent
+agent-remote-bridge --transport stdio
 ```
 
-如果你想清理已关闭且过期的 session：
+Windows helper script:
 
 ```powershell
-agent-remote-bridge session cleanup --max-age-hours 24
+powershell -ExecutionPolicy Bypass -File .\scripts\run_server.ps1 --transport stdio
 ```
 
-如果你想在真正连接远端前先检查配置：
+If you prefer local HTTP mode:
 
 ```powershell
-agent-remote-bridge config-validate
+agent-remote-bridge start
+agent-remote-bridge status
 ```
 
-如果你想在真正执行命令前先确认远程连通链路：
+## 5. Connect from a client / 在客户端接入
 
-```powershell
-agent-remote-bridge preflight --host-id demo-server
-```
-
-如果你想停掉本地 HTTP MCP server：
-
-```powershell
-agent-remote-bridge stop
-```
-
-## 4. 在客户端里接入
-
-如果客户端支持本地 `stdio` MCP server，就让它启动：
+If your MCP client supports local `stdio`, point it at:
 
 ```text
 agent-remote-bridge --transport stdio
 ```
 
-如果你使用 VS Code，可以直接用项目里的：
+If you use VS Code, start from [CLIENTS.md](./CLIENTS.md) or the provided `.vscode/mcp.json`.
 
-- [.vscode/mcp.json](./.vscode/mcp.json)
+如果你使用 VS Code，可以从 [CLIENTS.md](./CLIENTS.md) 或仓库自带的 `.vscode/mcp.json` 开始。
 
-如果你使用 Codex Desktop，最短路径是直接运行：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\setup_codex_mcp.ps1
-```
-
-运行后重启 Codex Desktop 即可。
-
-## 5. 先试这三个动作
+## 6. Run the first three actions / 先试这三个动作
 
 1. `list_hosts`
 2. `open_session(host_id="demo-server")`
 3. `exec_remote(command="pwd")`
 
-默认推荐先围绕稳定工具集工作；只有在需要更强排障辅助时，再显式开启实验工具。
+At this point you have the basic loop working.
 
-## 6. 如果想快速验证
+到这里，最小闭环就已经跑通了。
+
+## 7. Optional local diagnostics / 可选本地诊断
 
 ```powershell
-python .\scripts\smoke_test.py --host-id demo-server
+agent-remote-bridge audit recent
+agent-remote-bridge session recent
+agent-remote-bridge session cleanup --max-age-hours 24
 ```
 
-如果成功，你会看到：
+## 8. When to enable experimental tools / 何时开启实验工具
 
-- 主机连接成功
-- session 打开成功
-- 远程 `pwd` 返回结果
+Default work should stay on the stable tool set.
+
+默认情况下，建议优先使用稳定工具集合。
+
+Enable experimental tools only if you explicitly need:
+
+- focused remote log tailing
+- port listening checks
+- process inspection
+- controlled remote file writes
+
+只有在你明确需要以下能力时，才建议开启实验工具：
+
+- 指定日志文件 tail
+- 端口监听检查
+- 进程检查
+- 受控远程写文件
+
+```powershell
+agent-remote-bridge --experimental-tools
+```

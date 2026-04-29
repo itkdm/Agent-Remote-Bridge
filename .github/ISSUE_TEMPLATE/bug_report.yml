@@ -1,0 +1,27 @@
+name: Bug report
+description: Report a reproducible defect in Agent Remote Bridge
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened and what did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include local OS, Python version, client, transport, and remote Linux distro if known.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Paste the exact commands, tool calls, config shape, or logs needed to reproduce.
+    validations:
+      required: true

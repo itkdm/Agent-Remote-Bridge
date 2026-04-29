@@ -1,0 +1,20 @@
+name: Client compatibility
+description: Report an MCP client integration issue
+title: "[Compatibility] "
+labels:
+  - compatibility
+body:
+  - type: input
+    id: client
+    attributes:
+      label: Client
+      description: VS Code, Codex Desktop, Claude Desktop, or another MCP client
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Compatibility details
+      description: Describe the exact integration problem and any relevant config snippets.
+    validations:
+      required: true

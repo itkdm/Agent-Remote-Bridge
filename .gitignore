@@ -5,5 +5,5 @@ __pycache__/
 *.egg-info/
 data/
 config/hosts.yaml
-docs/
-CONTRIBUTING.md
+docs/*.md
+!docs/ROADMAP.md

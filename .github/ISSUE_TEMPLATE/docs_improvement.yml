@@ -1,0 +1,13 @@
+name: Documentation improvement
+description: Suggest a docs clarification or missing guide
+title: "[Docs] "
+labels:
+  - documentation
+body:
+  - type: textarea
+    id: docs
+    attributes:
+      label: Documentation gap
+      description: What was unclear, missing, or misleading?
+    validations:
+      required: true

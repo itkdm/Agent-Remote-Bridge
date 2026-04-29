@@ -1,111 +1,74 @@
 # Agent Remote Bridge
 
-Agent Remote Bridge 是一个标准 MCP Server，用来把远程 Linux 服务器能力接入本地 Agent。
+Agent Remote Bridge is a controlled MCP server that lets a local coding agent work against a real remote Linux host over SSH.
 
-它的核心价值是：
+Agent Remote Bridge 是一个受控的 MCP Server，用来把远程 Linux 主机能力通过 SSH 安全接入本地 Coding Agent。
 
-- 保留本地上下文
-- 连接远程真实环境
-- 让 Agent 执行命令、读取文件、查看日志、检查服务状态
-- 用更受控的方式替代“手动 SSH 来回切换”
+## What It Is / 它是什么
 
-## 运行方式
+- Local-first: your MCP client runs locally, while the bridge reaches the remote host.
+- Remote Linux only: the bridge targets real Linux environments, not local shell emulation.
+- Non-interactive by design: sessions preserve context, but they are not persistent remote shells.
+- Agent-oriented: it is built for MCP clients such as VS Code, Codex Desktop, Claude Desktop, and other agent runtimes.
 
-默认推荐形态是：
+- 本地优先：MCP 客户端运行在本机，由桥接服务连接远程主机。
+- 面向真实 Linux：目标是远程 Linux 环境，而不是本地 shell 模拟。
+- 默认非交互：会话保留上下文，但不是远程常驻 shell。
+- 面向 Agent：适配 VS Code、Codex Desktop、Claude Desktop 及其他兼容 MCP 的客户端。
 
-- `Agent Remote Bridge` 运行在你的本地机器
-- 它被 VS Code、Codex Desktop、Claude Desktop 或其他兼容 MCP 的客户端拉起
-- 然后由它连接远程 Linux 服务器
+## Why Not Plain SSH / 为什么不是直接 SSH
 
-默认架构如下：
+Plain SSH is flexible, but it does not give an MCP agent stable tool contracts, structured diagnostics, bounded file operations, or local audit history.
 
-```text
-MCP Client (VS Code / Codex / Claude)
-            ->
-Agent Remote Bridge（本地运行）
-            ->
-SSH / Password / Key
-            ->
-Remote Linux Server
-```
+直接 SSH 很灵活，但它无法天然提供 MCP Agent 需要的稳定工具契约、结构化诊断、受控文件操作和本地审计记录。
 
-这也是最适合先落地的方式，因为它接入成本最低，调试最直接。
+Agent Remote Bridge adds:
 
-这个项目不是 VS Code 专属能力。只要客户端兼容 MCP，就都可以接入。
+- logical sessions with cwd and lightweight context retention
+- structured tool responses with `error_type` and suggestions
+- path allowlists and risk-aware execution boundaries
+- local audit and diagnostic commands such as `doctor`, `preflight`, and `audit recent`
 
-当前支持的传输方式：
+Agent Remote Bridge 额外提供：
 
-- `stdio`
-- `sse`
-- `streamable-http`
+- 带 cwd 和轻量上下文保留的逻辑 session
+- 带 `error_type` 和建议动作的结构化返回
+- 路径白名单和风险感知的执行边界
+- `doctor`、`preflight`、`audit recent` 等本地诊断和审计能力
 
-因此可接入：
+## Who Should Use It / 适合谁使用
 
-- VS Code
-- Codex Desktop
-- Claude Desktop
-- 其他兼容 MCP 的客户端或 Agent 框架
+Use Agent Remote Bridge if you:
 
-## 当前范围
+- build or operate MCP-enabled coding agents
+- want a local agent to inspect or change a remote Linux environment
+- need more control than ad-hoc SSH hopping
+- prefer a small, explicit tool surface over a heavy remote automation platform
 
-当前项目定位为：
+适合使用 Agent Remote Bridge 的场景：
 
-- Linux only
-- SSH/密码登录优先
-- 非交互式命令执行
-- 逻辑 session，而不是远程持久 shell
+- 你在构建或使用兼容 MCP 的 Coding Agent
+- 你希望本地 Agent 能查看或操作远程 Linux 环境
+- 你需要比临时 SSH 跳转更可控的方式
+- 你希望工具面小而明确，而不是一个重型远程运维平台
 
-## 默认公开的稳定工具
+Do **not** use it if you need:
 
-默认情况下，服务只暴露稳定工具：
+- interactive TTY sessions
+- non-Linux remote targets
+- team RBAC or multi-tenant control planes
+- Docker / Kubernetes / WinRM adapters today
 
-- `list_hosts`
-- `open_session`
-- `get_session_state`
-- `close_session`
-- `exec_remote`
-- `read_remote_file`
-- `write_remote_file`
-- `append_remote_file`
-- `list_remote_dir`
-- `get_system_facts`
-- `tail_system_log`
-- `check_service_status`
+如果你需要以下能力，目前不适合使用它：
 
-这套工具面是刻意收敛过的，核心原则是：
+- 交互式 TTY 会话
+- 非 Linux 远程目标
+- 团队 RBAC 或多租户控制平面
+- Docker / Kubernetes / WinRM 适配器
 
-- 通用操作优先交给 `exec_remote`
-- 写操作默认受路径白名单、payload 大小和审计约束
-- 只保留少量高价值、稳定的结构化工具
+## Quickstart / 快速开始
 
-## 实验性工具
-
-以下工具默认不公开，只有显式开启实验模式才会暴露：
-
-- `test_host_connection`
-- `tail_remote_logs`
-- `check_port_listening`
-- `inspect_processes`
-- `find_log_file`
-
-这些工具用于排障增强和开发期验证，不承诺长期接口稳定性。默认推荐优先使用稳定工具集；只有在它们明显减少试探成本时，再显式开启实验模式。
-
-开启方式：
-
-```powershell
-agent-remote-bridge --experimental-tools
-```
-
-或：
-
-```powershell
-$env:ARB_ENABLE_EXPERIMENTAL_TOOLS=1
-agent-remote-bridge
-```
-
-## 安装
-
-### 方式一：使用项目内虚拟环境
+Install from source for now:
 
 ```powershell
 python -m venv .venv
@@ -113,417 +76,172 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e .
 ```
 
-### 方式二：直接安装为命令行工具
+当前仓库内的最短安装路径仍然是源码安装；正式 PyPI 发布前，建议这样使用。
 
-```powershell
-pip install -e .
-```
-
-安装后会提供命令：
-
-```powershell
-agent-remote-bridge
-```
-
-## 开发与测试
-
-安装开发依赖：
-
-```powershell
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
-```
-
-运行测试：
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest
-```
-
-## 配置
-
-复制示例配置：
+Create your local host config:
 
 ```powershell
 Copy-Item .\config\hosts.example.yaml .\config\hosts.yaml
 ```
 
-然后修改 [config/hosts.yaml](./config/hosts.yaml)。
-
-说明：
-
-- `config/hosts.yaml` 是你的本地私有配置
-- 对外分享时，以 `config/hosts.example.yaml` 为准
-- 详细说明见 [config/README.md](./config/README.md)
-
-推荐的密码登录示例：
-
-```yaml
-hosts:
-  - host_id: demo-server
-    alias: demo
-    host: YOUR_SERVER_IP
-    port: 22
-    username: root
-    auth_mode: password
-    password_env: ARB_DEMO_SERVER_PASSWORD
-    default_workdir: /root
-    allowed_paths:
-      - /root
-      - /etc
-      - /tmp
-      - /var/log
-    allow_sudo: true
-    tags:
-      - demo
-      - linux
-```
-
-注意：
-
-- 长期使用优先选择 `key_path` 或 `ssh_config`
-- 如果使用 `key_path`，`config-validate` 会检查私钥文件是否存在于本机
-- 当前仍支持密码登录
-- 不建议把真实密码提交到仓库
-- 推荐用 `password_env` 代替明文 `password`
-- 密码登录模式会自动重试少量瞬时 SSH 建连抖动
-- SSH 连接失败会尽量区分认证失败、banner 异常和连接异常
-- SSH 相关错误返回会附带更直接的下一步排查建议
-
-环境变量示例：
+Set a password environment variable if you use password auth:
 
 ```powershell
 $env:ARB_DEMO_SERVER_PASSWORD="YOUR_PASSWORD"
 ```
 
-## 启动
+Validate locally before connecting:
 
-### 1. 本地 `stdio` 启动
+```powershell
+agent-remote-bridge config-validate
+agent-remote-bridge preflight --host-id demo-server
+```
 
-这是最适合桌面类 MCP 客户端的方式。
+Start the MCP server:
 
 ```powershell
 agent-remote-bridge --transport stdio
 ```
 
-或：
+Then use these first three actions:
 
-```powershell
-python -m agent_remote_bridge.main --transport stdio
-```
+1. `list_hosts`
+2. `open_session(host_id="demo-server")`
+3. `exec_remote(command="pwd")`
 
-Windows 下也可以用项目脚本：
+More guided first-run steps live in [QUICKSTART.md](./QUICKSTART.md).
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\run_server.ps1 --transport stdio
-```
+更完整的首次接入步骤见 [QUICKSTART.md](./QUICKSTART.md)。
 
-### 2. HTTP 启动
+The tracked example config lives at [config/hosts.example.yaml](./config/hosts.example.yaml).
 
-适合代理接入或多客户端场景。
+仓库中可直接查看的示例配置位于 [config/hosts.example.yaml](./config/hosts.example.yaml)。
 
-```powershell
-agent-remote-bridge --transport streamable-http --host 127.0.0.1 --port 8000
-```
+## Stable vs Experimental / 稳定能力与实验能力
 
-或者：
+### Stable tools / 默认稳定工具
 
-```powershell
-agent-remote-bridge --transport sse --host 127.0.0.1 --port 8000
-```
+- `list_hosts`
+- `open_session`
+- `get_session_state`
+- `close_session`
+- `exec_remote`
+- `read_remote_file`
+- `list_remote_dir`
+- `get_system_facts`
+- `tail_system_log`
+- `check_service_status`
 
-### 3. 指定自定义 SQLite 路径
+These are the default public contract. Behavior changes to them should come with tests, docs, and release notes.
 
-```powershell
-agent-remote-bridge --sqlite-path .\data\state.dev.db
-```
+这些工具构成默认公开契约。对它们的行为调整应同步带上测试、文档和发布说明。
 
-### 4. 开启实验性工具
+### Experimental tools / 实验工具
+
+- `test_host_connection`
+- `tail_remote_logs`
+- `check_port_listening`
+- `inspect_processes`
+- `find_log_file`
+- `write_remote_file`
+- `append_remote_file`
+
+Experimental tools are opt-in and may evolve faster. Enable them only when they clearly reduce operator guesswork.
+
+实验工具需要显式开启，演进速度可能更快。只有在它们确实能减少排障试探成本时才建议启用。
+
+Enable experimental mode with:
 
 ```powershell
 agent-remote-bridge --experimental-tools
 ```
 
-### 5. 检查本地 MCP server 状态
+or:
 
 ```powershell
-agent-remote-bridge status
+$env:ARB_ENABLE_EXPERIMENTAL_TOOLS=1
 ```
 
-这个命令会检查：
+## Security Model / 安全模型
 
-- 本地 `127.0.0.1:8000` 是否在监听
-- `http://127.0.0.1:8000/mcp` 是否可响应
-- Codex 是否已经注册了 `agentRemoteBridge`
+Agent Remote Bridge is a **controlled remote execution bridge**, not a sandbox.
 
-### 6. 停止本地 HTTP MCP server
+Agent Remote Bridge 是一个**受控远程执行桥**，不是沙箱。
 
-```powershell
-agent-remote-bridge stop
-```
+Current guardrails include:
 
-这个命令会停止由本项目启动的本地 `streamable-http` MCP server 进程。
+- host-scoped `allowed_paths`
+- command risk classification
+- explicit `sudo` policy
+- session TTL and closed-session rejection
+- local audit records with summaries, failure stages, and retry metadata
 
-### 7. 后台启动本地 HTTP MCP server
+当前保护边界包括：
 
-```powershell
-agent-remote-bridge start
-```
+- 按主机配置的 `allowed_paths`
+- 命令风险分级
+- 显式 `sudo` 策略
+- session TTL 与 closed session 拒绝执行
+- 带摘要、失败阶段、重试信息的本地审计记录
 
-这个命令会在后台启动本地 `streamable-http` MCP server，并默认监听：
+`exec_remote` is intentionally powerful. Treat it as an escape hatch with policy, audit, and review around it.
 
-- `127.0.0.1:8000`
-- `http://127.0.0.1:8000/mcp`
+`exec_remote` 是有意保留的强能力入口，应当和策略、审计、评审一起使用。
 
-### 8. 注册到 Codex
+See [SECURITY.md](./SECURITY.md) for disclosure guidance.
 
-```powershell
-agent-remote-bridge codex-register
-```
+安全报告和披露流程见 [SECURITY.md](./SECURITY.md)。
 
-这个命令会把本地 MCP 地址注册到 Codex：
+## Supported Platforms / 支持矩阵
 
-- 默认名称：`agentRemoteBridge`
-- 默认地址：`http://127.0.0.1:8000/mcp`
+### Local runtime / 本地运行环境
 
-### 9. 一次性诊断本地环境
+- Windows: supported
+- macOS: supported
+- Linux: supported
+- Python: `3.11` and `3.12`
 
-```powershell
-agent-remote-bridge doctor
-```
+### Remote targets / 远程目标
 
-这个命令会统一检查：
+- Linux only
+- SSH only
+- non-interactive command execution only
 
-- `config/hosts.yaml` 是否存在
-- 至少是否配置了 1 个主机
-- 本地 HTTP MCP server 是否在线
-- Codex 是否已经注册当前 MCP 地址
-- 如果只配置了 1 个可用主机，或显式传入 `--preflight-host-id`，还会附带远程链路预检摘要
+### Transports / 传输方式
 
-### 10. 查看最近本地审计记录
+- `stdio`
+- `sse`
+- `streamable-http`
 
-```powershell
-agent-remote-bridge audit recent
-```
+## Repository Guide / 仓库导航
 
-这个命令支持查看最近的本地操作记录，也支持按主机、session、工具名和失败状态过滤。
-对于 `exec_remote`，审计记录会保留执行耗时、是否触发 SSH 重试、stderr 首条摘要，以及当前可操作的下一步建议。
+- [QUICKSTART.md](./QUICKSTART.md): first 5-minute setup
+- [CLIENTS.md](./CLIENTS.md): client-specific integration examples
+- [CONTRIBUTING.md](./CONTRIBUTING.md): development workflow and contribution rules
+- [SUPPORT.md](./SUPPORT.md): support expectations and issue guidance
+- [RELEASE.md](./RELEASE.md): release checklist and tagging flow
+- [docs/ROADMAP.md](./docs/ROADMAP.md): public roadmap
 
-### 11. 查看最近本地 session
+## Roadmap / 路线图
 
-```powershell
-agent-remote-bridge session recent
-```
+Current priorities:
 
-这个命令用于查看最近的逻辑会话状态，便于排查上下文残留或确认最近使用情况。
+1. Freeze the stable tool contract after this cleanup pass
+2. Keep CI green across Windows, macOS, and Linux
+3. Publish installable release artifacts
+4. Keep docs, diagnostics, and release gates aligned
 
-### 12. 清理过期 closed session
+当前阶段的重点是：
 
-```powershell
-agent-remote-bridge session cleanup --max-age-hours 24
-```
+1. 完成这轮收口后冻结稳定工具契约
+2. 维持 Windows、macOS、Linux 三端 CI 绿色
+3. 提供可安装的发布产物
+4. 保持文档、诊断命令和 release gate 一致
 
-这个命令会删除早于指定时间阈值的 closed session，避免本地 SQLite 中长期堆积无用上下文。
+More detail lives in [docs/ROADMAP.md](./docs/ROADMAP.md).
 
-### 13. 校验本地主机配置
-
-```powershell
-agent-remote-bridge config-validate
-```
-
-这个命令会在真正连接远端之前检查 `config/hosts.yaml` 的结构、认证组合、路径配置和明显的占位值问题。
-### 14. 运行远程连接预检
-
-```powershell
-agent-remote-bridge preflight --host-id demo-server
-```
-
-这个命令会按阶段检查：
-
-- 主机配置是否有效
-- DNS / IP 是否可解析
-- TCP 22 端口是否可达
-- SSH banner 是否正常
-- 认证是否成功
-
-### 15. 运行标准发布门槛
-
-```powershell
-.\.venv\Scripts\python.exe .\scripts\release_gate.py --dry-run
-.\.venv\Scripts\python.exe .\scripts\release_gate.py --host-id demo-server
-```
-
-这个脚本会统一串起本地测试、稳定工具 smoke、CLI 帮助检查，以及可选的远程预检与 `connect-only` smoke。
-
-## 命令行参数
-
-```text
-agent-remote-bridge [OPTIONS]
-
---transport {stdio,sse,streamable-http}
---host HOST
---port PORT
---sqlite-path PATH
---experimental-tools
---log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
-
-agent-remote-bridge status [OPTIONS]
-
---host HOST
---port PORT
---codex-server-name NAME
-
-agent-remote-bridge stop [OPTIONS]
-
---port PORT
-
-agent-remote-bridge start [OPTIONS]
-
---host HOST
---port PORT
---sqlite-path PATH
---experimental-tools
---log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
-
-agent-remote-bridge codex-register [OPTIONS]
-
---host HOST
---port PORT
---codex-server-name NAME
-
-agent-remote-bridge doctor [OPTIONS]
-
---host HOST
---port PORT
---sqlite-path PATH
---experimental-tools
---codex-server-name NAME
---config-path PATH
---preflight-host-id HOST_ID
---preflight-timeout-sec N
-
-agent-remote-bridge audit recent [OPTIONS]
-
---limit N
---host-id HOST_ID
---session-id SESSION_ID
---tool-name TOOL_NAME
---only-failures
-
-agent-remote-bridge session recent [OPTIONS]
-
---limit N
---sqlite-path PATH
-
-agent-remote-bridge session cleanup [OPTIONS]
-
---max-age-hours N
---sqlite-path PATH
-
-agent-remote-bridge config-validate [OPTIONS]
-
---config-path PATH
---sqlite-path PATH
---experimental-tools
-
-agent-remote-bridge preflight [OPTIONS]
-
---host-id HOST_ID
---timeout-sec N
---config-path PATH
---sqlite-path PATH
---experimental-tools
-```
-
-## 客户端接入
-
-### VS Code
-
-推荐通过工作区级 `.vscode/mcp.json` 让 VS Code 直接拉起本地 `stdio` server。
-
-项目里已经提供了一个示例：
-
-- [.vscode/mcp.json](./.vscode/mcp.json)
-
-如果你使用项目自带虚拟环境，VS Code 最终拉起的是：
-
-- [scripts/run_server.ps1](./scripts/run_server.ps1)
-
-### 其他 MCP 客户端
-
-如果客户端支持 `stdio` MCP server，只要配置它启动：
-
-```powershell
-agent-remote-bridge --transport stdio
-```
-
-即可接入。
-
-如果客户端支持 HTTP MCP server，也可以连接：
-
-```powershell
-agent-remote-bridge --transport streamable-http --host 127.0.0.1 --port 8000
-```
-
-更完整的接入示例见：
-
-- [CLIENTS.md](./CLIENTS.md)
-
-如果你使用 Codex Desktop，项目也提供了一键接入脚本：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\setup_codex_mcp.ps1
-```
-
-这个脚本会启动本地 HTTP MCP server，并把它注册到 Codex 的全局 MCP 配置。
-
-## 推荐使用方式
-
-1. 本地运行 `Agent Remote Bridge`
-2. 使用 MCP 客户端接入本地 server
-3. 由它连接远程 Linux 服务器
-4. 优先使用稳定工具集
-5. 复杂场景回退到 `exec_remote`
-
-## 适合的场景
-
-- 在本地使用 Agent，但需要操作远程 Linux 服务器
-- 需要查看日志、检查服务状态、读取配置文件
-- 希望把“本地上下文 + 远程执行”串成连续工作流
-- 希望先以最小方式接入 MCP，再逐步扩展能力
-
-## 当前状态
-
-当前已经验证通过：
-
-- 本地 MCP server 可运行
-- VS Code 可接入
-- 远程链路可通过 `preflight` 做结构化诊断
-- 可执行 `pwd`、`ls`、`cat`
-- 可读取系统事实信息
-- 可查看系统日志
-- 可检查服务状态
-
-## 快速开始
-
-更适合第一次使用的版本见：
-
-- [QUICKSTART.md](./QUICKSTART.md)
-- [docs/验收场景与发布门槛.md](./docs/验收场景与发布门槛.md)
-
-也可以直接运行本地 smoke test：
-
-```powershell
-python .\scripts\smoke_test.py --host-id demo-server --connect-only
-python .\scripts\smoke_test.py --host-id demo-server
-```
-
-说明：
-
-- `--connect-only` 需要实验工具 `test_host_connection`，脚本会自动启用实验模式
-- 如果远程 SSH banner 或认证本身存在问题，脚本会按统一错误类型直接返回诊断结果
+更多细节见 [docs/ROADMAP.md](./docs/ROADMAP.md)。
 
 ## License
 
-本项目当前使用：
-
-- [MIT License](./LICENSE)
+This project is released under the [MIT License](./LICENSE).

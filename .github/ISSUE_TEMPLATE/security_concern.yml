@@ -1,0 +1,16 @@
+name: Security concern
+description: Report a potential security issue without posting sensitive details publicly
+title: "[Security] "
+labels:
+  - security
+body:
+  - type: markdown
+    attributes:
+      value: "Please avoid posting exploit details publicly. Follow SECURITY.md for private reporting instructions."
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Share a high-level summary without sensitive payloads.
+    validations:
+      required: true
