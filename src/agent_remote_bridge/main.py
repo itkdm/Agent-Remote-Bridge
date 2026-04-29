@@ -18,6 +18,7 @@ from agent_remote_bridge.services.host_service import HostService
 from agent_remote_bridge.settings import load_settings
 from agent_remote_bridge.stores.audit_store import AuditStore
 from agent_remote_bridge.stores.host_store import HostStore
+from agent_remote_bridge.utils.suggested_actions import suggested_actions_for_error
 
 
 def _apply_runtime_env(args: argparse.Namespace) -> None:
@@ -144,18 +145,30 @@ def _find_local_http_server_pids(port: int) -> list[int]:
     return pids
 
 
+def _cli_payload(*, ok: bool, mode: str, error_type: str | None = None, suggested_next_actions: list[str] | None = None, **extra: Any) -> dict[str, Any]:
+    if not ok and error_type and suggested_next_actions is None:
+        suggested_next_actions = suggested_actions_for_error(error_type)
+    return {
+        "ok": ok,
+        "mode": mode,
+        "error_type": error_type,
+        "suggested_next_actions": suggested_next_actions or [],
+        **extra,
+    }
+
+
 def _start_command(args: argparse.Namespace) -> int:
     existing_pids = _find_local_http_server_pids(args.port)
-    payload: dict[str, Any] = {
-        "ok": True,
-        "mode": "start",
-        "host": args.host,
-        "port": args.port,
-        "transport": "streamable-http",
-        "mcp_url": f"http://{args.host}:{args.port}/mcp",
-        "started_pid": None,
-        "message": "",
-    }
+    payload = _cli_payload(
+        ok=True,
+        mode="start",
+        host=args.host,
+        port=args.port,
+        transport="streamable-http",
+        mcp_url=f"http://{args.host}:{args.port}/mcp",
+        started_pid=None,
+        message="",
+    )
 
     if existing_pids:
         payload["started_pid"] = existing_pids[0]
@@ -213,6 +226,8 @@ def _start_command(args: argparse.Namespace) -> int:
         time.sleep(0.5)
 
     payload["ok"] = False
+    payload["error_type"] = "connection_error"
+    payload["suggested_next_actions"] = suggested_actions_for_error("connection_error")
     payload["message"] = "Failed to start local Agent Remote Bridge HTTP server."
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 1
@@ -220,13 +235,13 @@ def _start_command(args: argparse.Namespace) -> int:
 
 def _stop_command(args: argparse.Namespace) -> int:
     pids = _find_local_http_server_pids(args.port)
-    payload: dict[str, Any] = {
-        "ok": True,
-        "mode": "stop",
-        "port": args.port,
-        "stopped_pids": [],
-        "message": "",
-    }
+    payload = _cli_payload(
+        ok=True,
+        mode="stop",
+        port=args.port,
+        stopped_pids=[],
+        message="",
+    )
     if not pids:
         payload["message"] = "No local Agent Remote Bridge HTTP server process found."
         print(json.dumps(payload, ensure_ascii=False, indent=2))
@@ -239,6 +254,8 @@ def _stop_command(args: argparse.Namespace) -> int:
             stopped.append(proc_id)
         except OSError as exc:
             payload["ok"] = False
+            payload["error_type"] = "connection_error"
+            payload["suggested_next_actions"] = suggested_actions_for_error("connection_error")
             payload["message"] = f"Failed to stop process {proc_id}: {exc}"
             payload["stopped_pids"] = stopped
             print(json.dumps(payload, ensure_ascii=False, indent=2))
@@ -260,17 +277,19 @@ def _status_command(args: argparse.Namespace) -> int:
     }
     codex_status = _read_codex_server_status(args.codex_server_name, url)
 
-    payload = {
-        "ok": tcp_ok and http_probe["ok"],
-        "mode": "status",
-        "transport": "streamable-http",
-        "host": args.host,
-        "port": args.port,
-        "mcp_url": url,
-        "tcp_listening": tcp_ok,
-        "http_probe": http_probe,
-        "codex": codex_status,
-    }
+    ok = tcp_ok and http_probe["ok"]
+    payload = _cli_payload(
+        ok=ok,
+        mode="status",
+        error_type=None if ok else "connection_error",
+        transport="streamable-http",
+        host=args.host,
+        port=args.port,
+        mcp_url=url,
+        tcp_listening=tcp_ok,
+        http_probe=http_probe,
+        codex=codex_status,
+    )
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0 if payload["ok"] else 1
 
@@ -280,8 +299,11 @@ def _codex_register_command(args: argparse.Namespace) -> int:
     list_result = _run_codex_command(["mcp", "list"])
     if list_result.returncode != 0:
         payload = {
-            "ok": False,
-            "mode": "codex-register",
+            **_cli_payload(
+                ok=False,
+                mode="codex-register",
+                error_type="config_error",
+            ),
             "server_name": args.codex_server_name,
             "mcp_url": url,
             "message": "Failed to inspect existing Codex MCP servers.",
@@ -294,8 +316,11 @@ def _codex_register_command(args: argparse.Namespace) -> int:
         remove_result = _run_codex_command(["mcp", "remove", args.codex_server_name])
         if remove_result.returncode != 0:
             payload = {
-                "ok": False,
-                "mode": "codex-register",
+                **_cli_payload(
+                    ok=False,
+                    mode="codex-register",
+                    error_type="config_error",
+                ),
                 "server_name": args.codex_server_name,
                 "mcp_url": url,
                 "message": "Failed to replace existing Codex MCP server registration.",
@@ -306,8 +331,11 @@ def _codex_register_command(args: argparse.Namespace) -> int:
 
     add_result = _run_codex_command(["mcp", "add", args.codex_server_name, "--url", url])
     payload = {
-        "ok": add_result.returncode == 0,
-        "mode": "codex-register",
+        **_cli_payload(
+            ok=add_result.returncode == 0,
+            mode="codex-register",
+            error_type=None if add_result.returncode == 0 else "config_error",
+        ),
         "server_name": args.codex_server_name,
         "mcp_url": url,
         "message": "Registered MCP server in Codex." if add_result.returncode == 0 else "Failed to register MCP server in Codex.",
@@ -387,9 +415,13 @@ def _doctor_command(args: argparse.Namespace) -> int:
                 f"Remote preflight failed for host '{selected_preflight_host_id}' at stage '{failed_stage}'."
             )
 
+    ok = len(issues) == 0
     payload = {
-        "ok": len(issues) == 0,
-        "mode": "doctor",
+        **_cli_payload(
+            ok=ok,
+            mode="doctor",
+            error_type=None if ok else ("config_error" if config_validation["errors"] else "connection_error"),
+        ),
         "summary": {
             "config_exists": config_validation["path"] is not None and settings.host_config_path.exists(),
             "host_count": config_validation["host_count"],
@@ -432,8 +464,11 @@ def _config_validate_command(args: argparse.Namespace) -> int:
     host_store = HostStore(config_path)
     validation = host_store.validate_config()
     payload = {
-        "ok": validation["ok"],
-        "mode": "config_validate",
+        **_cli_payload(
+            ok=validation["ok"],
+            mode="config_validate",
+            error_type=None if validation["ok"] else "config_error",
+        ),
         "path": validation["path"],
         "host_count": validation["host_count"],
         "errors": validation["errors"],
@@ -464,8 +499,11 @@ def _preflight_command(args: argparse.Namespace) -> int:
         stage_config["detail"] = f"Host '{args.host_id}' is not present in {validation['path']}"
         stage_config["error_type"] = "config_error"
         payload = {
-            "ok": False,
-            "mode": "preflight",
+            **_cli_payload(
+                ok=False,
+                mode="preflight",
+                error_type="config_error",
+            ),
             "host_id": args.host_id,
             "summary": "Remote preflight failed at config",
             "stages": [stage_config],
@@ -481,8 +519,11 @@ def _preflight_command(args: argparse.Namespace) -> int:
         stage_config["detail"] = "; ".join(errors)
         stage_config["error_type"] = "config_error"
         payload = {
-            "ok": False,
-            "mode": "preflight",
+            **_cli_payload(
+                ok=False,
+                mode="preflight",
+                error_type="config_error",
+            ),
             "host_id": args.host_id,
             "summary": "Remote preflight failed at config",
             "stages": [stage_config],
@@ -495,7 +536,15 @@ def _preflight_command(args: argparse.Namespace) -> int:
     host_service = HostService(adapter=SSHAdapter(), audit_service=audit_service)
     host = host_store.get_host(args.host_id)
     result = host_service.preflight(host, timeout_sec=args.timeout_sec)
-    result["mode"] = "preflight"
+    failed_stage = next((stage for stage in result["stages"] if not stage["ok"]), None)
+    result = {
+        **_cli_payload(
+            ok=result["ok"],
+            mode="preflight",
+            error_type=None if result["ok"] else (failed_stage["error_type"] if failed_stage else "remote_execution_failed"),
+        ),
+        **result,
+    }
     result["stages"] = [stage_config, *result["stages"]]
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result["ok"] else 1

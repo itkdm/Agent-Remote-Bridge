@@ -3,6 +3,7 @@ from __future__ import annotations
 from agent_remote_bridge.adapters.ssh_adapter import SSHAdapter
 from agent_remote_bridge.models import HostConfig, SessionState
 from agent_remote_bridge.services.audit_service import AuditService
+from agent_remote_bridge.utils.suggested_actions import suggested_actions_for_error
 from agent_remote_bridge.utils.truncation import truncate_text
 
 
@@ -59,6 +60,8 @@ class SystemService:
                     "summary": summary,
                     "exit_code": result.exit_code,
                     "truncated": stdout_truncated or stderr_truncated,
+                    "error_type": None if result.exit_code == 0 else "remote_execution_failed",
+                    "suggested_next_actions": [] if result.exit_code == 0 else suggested_actions_for_error("remote_execution_failed"),
                 }
             if stderr.strip():
                 errors.append(f"{backend}: {stderr.strip().splitlines()[0][:160]}")
@@ -84,4 +87,6 @@ class SystemService:
             "summary": summary,
             "exit_code": 1,
             "truncated": False,
+            "error_type": "remote_execution_failed",
+            "suggested_next_actions": suggested_actions_for_error("remote_execution_failed"),
         }

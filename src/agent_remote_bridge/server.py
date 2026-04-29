@@ -85,6 +85,32 @@ def _ok(message: str, data: dict | list | None = None, *, risk_flags: list[str] 
     ).model_dump(mode="json")
 
 
+def _result_envelope(
+    *,
+    data: dict,
+    success_message: str,
+    failure_message: str,
+) -> dict:
+    ok = data.get("ok")
+    if ok is None:
+        ok = data.get("exit_code", 0) == 0
+    error_type = data.get("error_type")
+    if not ok and error_type is None:
+        error_type = "remote_execution_failed"
+    suggested_next_actions = list(data.get("suggested_next_actions", []))
+    if not ok and not suggested_next_actions and error_type:
+        suggested_next_actions = suggested_actions_for_error(error_type)
+    return ResponseEnvelope(
+        ok=bool(ok),
+        message=success_message if ok else failure_message,
+        data=data,
+        suggested_next_actions=suggested_next_actions,
+        risk_flags=list(data.get("risk_flags", [])),
+        truncated=bool(data.get("truncated", False)),
+        error_type=error_type,
+    ).model_dump(mode="json")
+
+
 def _error(
     message: str,
     *,
@@ -258,12 +284,10 @@ def create_server(
             use_sudo=use_sudo,
             require_approval=require_approval,
         )
-        message = "Command executed successfully" if result.ok else "Command failed"
-        return _ok(
-            message,
-            result.model_dump(mode="json"),
-            risk_flags=result.risk_flags,
-            truncated=result.truncated,
+        return _result_envelope(
+            data=result.model_dump(mode="json"),
+            success_message="Command executed successfully",
+            failure_message="Command failed",
         )
 
     @server.tool(description="Read a remote file within allowed paths, optionally using head or tail mode.")
@@ -285,7 +309,11 @@ def create_server(
             head_lines=head_lines,
             tail_lines=tail_lines,
         )
-        return _ok("Remote file read successfully", result, truncated=result["truncated"])
+        return _result_envelope(
+            data=result,
+            success_message="Remote file read successfully",
+            failure_message="Remote file read failed",
+        )
 
     @server.tool(description="List entries in a remote directory within allowed paths.")
     @_wrap_tool
@@ -293,7 +321,11 @@ def create_server(
         session = session_manager.get_session(session_id)
         host = host_store.get_host(session.host_id)
         result = file_service.list_dir(host=host, session=session, path=path)
-        return _ok("Remote directory listed successfully", result, truncated=result["truncated"])
+        return _result_envelope(
+            data=result,
+            success_message="Remote directory listed successfully",
+            failure_message="Remote directory listing failed",
+        )
 
     @server.tool(description="Fetch recent system logs using the best available backend.")
     @_wrap_tool
@@ -301,7 +333,11 @@ def create_server(
         session = session_manager.get_session(session_id)
         host = host_store.get_host(session.host_id)
         result = file_service.tail_system_log(host=host, session=session, lines=lines)
-        return _ok("System logs fetched successfully", result, truncated=result["truncated"])
+        return _result_envelope(
+            data=result,
+            success_message="System logs fetched successfully",
+            failure_message="System logs fetch failed",
+        )
 
     @server.tool(description="Collect basic system facts such as OS, kernel, package manager, and shell.")
     @_wrap_tool
@@ -321,7 +357,11 @@ def create_server(
             session=session,
             service_name=service_name,
         )
-        return _ok("Service status fetched successfully", result, truncated=result["truncated"])
+        return _result_envelope(
+            data=result,
+            success_message="Service status fetched successfully",
+            failure_message="Service status fetch failed",
+        )
 
     @server.tool(description="Close a logical remote session.")
     @_wrap_tool
@@ -347,7 +387,11 @@ def create_server(
                 keyword=keyword,
                 max_results=max_results,
             )
-            return _ok("Candidate log files fetched successfully", result)
+            return _result_envelope(
+                data=result,
+                success_message="Candidate log files fetched successfully",
+                failure_message="Candidate log file lookup failed",
+            )
 
         @server.tool(description="Experimental: tail a specific remote log file within allowed paths.")
         @_wrap_tool
@@ -355,7 +399,11 @@ def create_server(
             session = session_manager.get_session(session_id)
             host = host_store.get_host(session.host_id)
             result = file_service.tail_logs(host=host, session=session, path=path, lines=lines)
-            return _ok("Remote logs fetched successfully", result, truncated=result["truncated"])
+            return _result_envelope(
+                data=result,
+                success_message="Remote logs fetched successfully",
+                failure_message="Remote logs fetch failed",
+            )
 
         @server.tool(description="Experimental: check whether a TCP port is currently listening on the remote host.")
         @_wrap_tool
@@ -367,7 +415,11 @@ def create_server(
                 session=session,
                 port=port,
             )
-            return _ok("Port listening status fetched successfully", result, truncated=result["truncated"])
+            return _result_envelope(
+                data=result,
+                success_message="Port listening status fetched successfully",
+                failure_message="Port listening status fetch failed",
+            )
 
         @server.tool(description="Experimental: inspect remote processes by keyword.")
         @_wrap_tool
@@ -380,7 +432,11 @@ def create_server(
                 keyword=keyword,
                 limit=limit,
             )
-            return _ok("Process inspection completed successfully", result, truncated=result["truncated"])
+            return _result_envelope(
+                data=result,
+                success_message="Process inspection completed successfully",
+                failure_message="Process inspection failed",
+            )
 
         @server.tool(description="Experimental: test SSH connectivity for a configured host.")
         @_wrap_tool
@@ -388,7 +444,10 @@ def create_server(
             host_store.ensure_config_exists()
             host = host_store.get_host(host_id)
             result = host_service.test_connection(host, timeout_sec=timeout_sec)
-            message = "Host connection test succeeded" if result["ok"] else "Host connection test failed"
-            return _ok(message, result, truncated=result["truncated"])
+            return _result_envelope(
+                data=result,
+                success_message="Host connection test succeeded",
+                failure_message="Host connection test failed",
+            )
 
     return server

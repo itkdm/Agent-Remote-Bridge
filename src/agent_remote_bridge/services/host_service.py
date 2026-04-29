@@ -6,6 +6,7 @@ from agent_remote_bridge.adapters.ssh_adapter import SSHAdapter
 from agent_remote_bridge.models import HostConfig
 from agent_remote_bridge.services.audit_service import AuditService
 from agent_remote_bridge.utils.errors import BridgeError
+from agent_remote_bridge.utils.suggested_actions import suggested_actions_for_error
 from agent_remote_bridge.utils.truncation import truncate_text
 
 
@@ -37,6 +38,8 @@ class HostService:
             "duration_ms": result.duration_ms,
             "summary": summary,
             "truncated": truncated,
+            "error_type": None if ok else "remote_execution_failed",
+            "suggested_next_actions": [] if ok else suggested_actions_for_error("remote_execution_failed"),
         }
 
     def preflight(self, host: HostConfig, timeout_sec: int = 15) -> dict:

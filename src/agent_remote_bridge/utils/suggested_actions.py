@@ -2,6 +2,11 @@ from __future__ import annotations
 
 
 def suggested_actions_for_error(error_type: str) -> list[str]:
+    if error_type == "connection_error":
+        return [
+            "check whether the target port or endpoint is reachable",
+            "retry after confirming the local service or network path is available",
+        ]
     if error_type == "ssh_auth_failed":
         return [
             "check username, password, or SSH key configuration",
@@ -36,6 +41,11 @@ def suggested_actions_for_error(error_type: str) -> list[str]:
         return [
             "narrow the command scope",
             "review the host security policy and allowed paths",
+        ]
+    if error_type == "remote_execution_failed":
+        return [
+            "inspect stderr or the command summary",
+            "retry the remote action after checking host state or configuration",
         ]
     return [
         "inspect the error message",

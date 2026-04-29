@@ -7,6 +7,7 @@ from agent_remote_bridge.services.security_guard import SecurityGuard
 from agent_remote_bridge.utils.errors import SecurityError
 from agent_remote_bridge.utils.remote_path import resolve_remote_path
 from agent_remote_bridge.utils.shell_quote import quote
+from agent_remote_bridge.utils.suggested_actions import suggested_actions_for_error
 from agent_remote_bridge.utils.truncation import truncate_text
 
 
@@ -98,6 +99,8 @@ class FileService:
             "size_bytes": size_bytes,
             "head_lines": head_lines,
             "tail_lines": tail_lines,
+            "error_type": None if result.exit_code == 0 else "remote_execution_failed",
+            "suggested_next_actions": [] if result.exit_code == 0 else suggested_actions_for_error("remote_execution_failed"),
         }
 
     def list_dir(self, *, host: HostConfig, session: SessionState, path: str) -> dict:
@@ -148,6 +151,8 @@ class FileService:
             "summary": summary,
             "exit_code": result.exit_code,
             "stderr": stderr,
+            "error_type": None if result.exit_code == 0 else "remote_execution_failed",
+            "suggested_next_actions": [] if result.exit_code == 0 else suggested_actions_for_error("remote_execution_failed"),
         }
 
     def tail_logs(self, *, host: HostConfig, session: SessionState, path: str, lines: int = 100) -> dict:
@@ -180,6 +185,8 @@ class FileService:
             "exit_code": result.exit_code,
             "stderr": stderr,
             "last_line": last_line,
+            "error_type": None if result.exit_code == 0 else "remote_execution_failed",
+            "suggested_next_actions": [] if result.exit_code == 0 else suggested_actions_for_error("remote_execution_failed"),
         }
 
     def tail_system_log(self, *, host: HostConfig, session: SessionState, lines: int = 100) -> dict:
@@ -211,6 +218,8 @@ class FileService:
                     "exit_code": result.exit_code,
                     "stderr": stderr,
                     "last_line": content.strip().splitlines()[-1][:200] if content.strip() else None,
+                    "error_type": None,
+                    "suggested_next_actions": [],
                 }
             if stderr.strip():
                 errors.append(f"{source}: {stderr.strip().splitlines()[0][:160]}")
@@ -235,6 +244,8 @@ class FileService:
             "exit_code": 1,
             "stderr": "\n".join(errors),
             "last_line": None,
+            "error_type": "remote_execution_failed",
+            "suggested_next_actions": suggested_actions_for_error("remote_execution_failed"),
         }
 
     def find_log_file(
@@ -315,6 +326,9 @@ class FileService:
             "searched_roots": search_roots,
             "summary": summary,
             "stderr": "\n".join(errors),
+            "ok": bool(unique_results),
+            "error_type": None if unique_results else "remote_execution_failed",
+            "suggested_next_actions": [] if unique_results else suggested_actions_for_error("remote_execution_failed"),
         }
 
     def _enforce_path(self, host: HostConfig, path: str) -> None:
