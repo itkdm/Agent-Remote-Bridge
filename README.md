@@ -342,6 +342,15 @@ agent-remote-bridge preflight --host-id demo-server
 - SSH banner 是否正常
 - 认证是否成功
 
+### 15. 运行标准发布门槛
+
+```powershell
+.\.venv\Scripts\python.exe .\scripts\release_gate.py --dry-run
+.\.venv\Scripts\python.exe .\scripts\release_gate.py --host-id demo-server
+```
+
+这个脚本会统一串起本地测试、稳定工具 smoke、CLI 帮助检查，以及可选的远程预检与 `connect-only` smoke。
+
 ## 命令行参数
 
 ```text
@@ -496,6 +505,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup_codex_mcp.ps1
 更适合第一次使用的版本见：
 
 - [QUICKSTART.md](./QUICKSTART.md)
+- [docs/验收场景与发布门槛.md](./docs/验收场景与发布门槛.md)
 
 也可以直接运行本地 smoke test：
 
