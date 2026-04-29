@@ -12,6 +12,8 @@ from agent_remote_bridge.utils.truncation import truncate_text
 
 
 class FileService:
+    _MAX_WRITE_CHARS = 20000
+
     def __init__(
         self,
         *,
@@ -331,7 +333,102 @@ class FileService:
             "suggested_next_actions": [] if unique_results else suggested_actions_for_error("remote_execution_failed"),
         }
 
+    def write_file(self, *, host: HostConfig, session: SessionState, path: str, content: str) -> dict:
+        return self._write_content(
+            host=host,
+            session=session,
+            path=path,
+            content=content,
+            append=False,
+        )
+
+    def append_file(self, *, host: HostConfig, session: SessionState, path: str, content: str) -> dict:
+        return self._write_content(
+            host=host,
+            session=session,
+            path=path,
+            content=content,
+            append=True,
+        )
+
     def _enforce_path(self, host: HostConfig, path: str) -> None:
         check = self._security_guard.check_path(host=host, path=path)
         if not check.allowed:
             raise SecurityError(check.message or "Path is not allowed")
+
+    def _write_content(
+        self,
+        *,
+        host: HostConfig,
+        session: SessionState,
+        path: str,
+        content: str,
+        append: bool,
+    ) -> dict:
+        resolved_path = resolve_remote_path(session.current_cwd, path)
+        self._enforce_path(host, resolved_path)
+        mode = "append" if append else "write"
+        tool_name = "append_remote_file" if append else "write_remote_file"
+
+        if len(content) > self._MAX_WRITE_CHARS:
+            summary = "Write payload exceeds the maximum allowed size"
+            actions = ["reduce payload size", "write the content in smaller chunks"]
+            self._audit_service.record(
+                host_id=host.host_id,
+                session_id=session.session_id,
+                tool_name=tool_name,
+                command=resolved_path,
+                blocked=True,
+                summary=summary,
+                error_type="command_blocked",
+                suggested_next_actions=actions,
+            )
+            return {
+                "ok": False,
+                "mode": mode,
+                "path": path,
+                "resolved_path": resolved_path,
+                "bytes_written": 0,
+                "truncated": False,
+                "summary": summary,
+                "exit_code": -1,
+                "stderr": "",
+                "error_type": "command_blocked",
+                "suggested_next_actions": actions,
+            }
+
+        redirection = ">>" if append else ">"
+        command = (
+            f"cat <<'__ARB_EOF__' {redirection} {quote(resolved_path)}\n"
+            f"{content}\n"
+            "__ARB_EOF__"
+        )
+        result = self._adapter.execute(host, command)
+        stderr, stderr_truncated = truncate_text(result.stderr, max_chars=2000)
+        ok = result.exit_code == 0
+        summary = "File append succeeded" if append and ok else "File write succeeded" if ok else ("File append failed" if append else "File write failed")
+        if not ok and stderr.strip():
+            summary = f"{summary}: {stderr.strip().splitlines()[0][:160]}"
+        self._audit_service.record(
+            host_id=host.host_id,
+            session_id=session.session_id,
+            tool_name=tool_name,
+            command=resolved_path,
+            exit_code=result.exit_code,
+            summary=summary,
+            error_type=None if ok else "remote_execution_failed",
+            suggested_next_actions=[] if ok else suggested_actions_for_error("remote_execution_failed"),
+        )
+        return {
+            "ok": ok,
+            "mode": mode,
+            "path": path,
+            "resolved_path": resolved_path,
+            "bytes_written": len(content.encode("utf-8")),
+            "truncated": stderr_truncated,
+            "summary": summary,
+            "exit_code": result.exit_code,
+            "stderr": stderr,
+            "error_type": None if ok else "remote_execution_failed",
+            "suggested_next_actions": [] if ok else suggested_actions_for_error("remote_execution_failed"),
+        }

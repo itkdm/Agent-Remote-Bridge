@@ -65,6 +65,8 @@ Remote Linux Server
 - `close_session`
 - `exec_remote`
 - `read_remote_file`
+- `write_remote_file`
+- `append_remote_file`
 - `list_remote_dir`
 - `get_system_facts`
 - `tail_system_log`
@@ -73,6 +75,7 @@ Remote Linux Server
 这套工具面是刻意收敛过的，核心原则是：
 
 - 通用操作优先交给 `exec_remote`
+- 写操作默认受路径白名单、payload 大小和审计约束
 - 只保留少量高价值、稳定的结构化工具
 
 ## 实验性工具

@@ -18,6 +18,8 @@ def test_create_server_registers_stable_tools() -> None:
         "close_session",
         "exec_remote",
         "read_remote_file",
+        "write_remote_file",
+        "append_remote_file",
         "list_remote_dir",
         "get_system_facts",
         "tail_system_log",
