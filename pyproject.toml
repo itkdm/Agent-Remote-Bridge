@@ -23,6 +23,11 @@ dependencies = [
   "PyYAML>=6.0.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "pytest>=9.0.0",
+]
+
 [project.scripts]
 agent-remote-bridge = "agent_remote_bridge.main:main"
 
@@ -35,3 +40,7 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

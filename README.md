@@ -120,6 +120,20 @@ pip install -e .
 agent-remote-bridge
 ```
 
+## 开发与测试
+
+安装开发依赖：
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+```
+
+运行测试：
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest
+```
+
 ## 配置
 
 复制示例配置：
