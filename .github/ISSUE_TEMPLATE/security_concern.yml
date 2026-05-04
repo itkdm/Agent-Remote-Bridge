@@ -6,7 +6,7 @@ labels:
 body:
   - type: markdown
     attributes:
-      value: "Please avoid posting exploit details publicly. Follow SECURITY.md for private reporting instructions."
+      value: "Please avoid posting exploit details publicly. Use the repository security reporting flow for private reporting."
   - type: textarea
     id: summary
     attributes:

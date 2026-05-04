@@ -2,4 +2,4 @@ blank_issues_enabled: false
 contact_links:
   - name: Security reporting
     url: https://github.com/itkdm/Agent-Remote-Bridge/security/policy
-    about: Report sensitive security issues privately using the instructions in SECURITY.md.
+    about: Report sensitive security issues privately through the repository security reporting flow.
